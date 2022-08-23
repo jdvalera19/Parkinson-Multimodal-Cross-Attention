@@ -63,8 +63,7 @@ def plot_data(dataFrame, label):
     plt.title(label)
     plt.legend(['Vowels', 'Phonemes', 'Words'])
     plt.savefig("Images/{}_exercises_distribution.pdf".format(label), bbox_inches='tight', pad_inches = 0)
-
-    plt.show()
+    plt.close()
 
 if __name__== "__main__":
     data_path = '/data/Datasets/Parkinson/Facial_Expression_Dataset/AudioVisualDataset_v5/'
