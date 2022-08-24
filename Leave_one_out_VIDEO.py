@@ -9,6 +9,8 @@ warnings.filterwarnings('ignore')
 
 import torch
 
+import pandas as pd
+
 from torchvision      import transforms
 from torch.utils.data import DataLoader
 
@@ -22,8 +24,8 @@ if __name__== "__main__":
     # Define the model parameters
     #-------------------------------------------------------------------
     lr                = 0.00001
-    epoch             = 25
-    batch_size        = 2
+    epoch             = 1
+    batch_size        = 30
     exercise          = 'Words'
     path_data         = '/home/brayan/AudioVisualData'
     note              = 'LOO_data_v2'
@@ -34,12 +36,12 @@ if __name__== "__main__":
     if torch.cuda.is_available():
         device = torch.device("cuda")
         print('-------------------------------------------------------------------')
-        print("Using GPU for training:", torch.cuda.get_device_name(), '-')
+        print("Using GPU for training:", torch.cuda.get_device_name())
         print('-------------------------------------------------------------------')
     else:
         device = torch.device("cpu")
         print('-------------------------------------------------------------------')
-        print("Failed to find GPU, using CPU instead.-")
+        print("Failed to find GPU, using CPU instead")
         print('-------------------------------------------------------------------')
 
     #-------------------------------------------------------------------
@@ -88,9 +90,30 @@ if __name__== "__main__":
         # Train and save the model
         #----------------------------------------------------------------
         dataloaders = {"train":train_loader, "test":test_loader}
-        model, Y, Y_pred, PK_props, C_props, Sample_ids, exercises = train_model_CE(model       = model,
+        model, Y_true, Y_pred, PK_props, C_props, sample_ids, exercises = train_model_CE(model       = model,
                                                                                     num_epochs  = epoch,
                                                                                     dataloaders = dataloaders,
                                                                                     modality    = 'video',
                                                                                     lr          = lr)
+
+        Y_true_g        += Y_true
+        Y_pred_g        += Y_pred
+        PK_props_g      += PK_props
+        C_props_g       += C_props
+        samples_ids_g   += sample_ids
+        exercises_g     += exercises
+    
+    dataframe_of_results_name = 'Results/Note:{}-Lr:{}-Epoch:{}-Exercise:{}.csv'.format(note, lr, epoch, exercise)
+
+    data_frame_of_results = pd.DataFrame({'Y_true'       : Y_true_g,
+                                          'Y_pred'       : Y_pred_g,
+                                          'PK_props'     : PK_props_g,
+                                          'C_props'      : C_props_g,
+                                          'Sample_ids'   : samples_ids_g,
+                                          'Exercise_g'   : exercises_g})
+
+    data_frame_of_results.to_csv(dataframe_of_results_name)
+
+    view_results(dataframe_of_results_name)
+
 
