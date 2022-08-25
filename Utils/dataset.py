@@ -1,12 +1,12 @@
-from cProfile import label
 import os
 import torch
 import torchaudio
 
 import numpy as np
 
-from skimage          import io
-from torch.utils.data import Dataset
+from skimage           import io
+from skimage.transform import resize
+from torch.utils.data  import Dataset
 
 #----------------------------------------------------------------------
 # Transform the numpy data in torch data
@@ -144,6 +144,7 @@ class VisualDataset(Dataset):
 
         for frame_index, frame_n in enumerate(frames[middle-self.duration:middle] + frames[middle:middle+self.duration]):
                 frame = io.imread(video_name + '/' + frame_n, as_gray=True)
+                frame = resize(frame, (224, 224), anti_aliasing=True)
                 frame = np.expand_dims(frame, 2)
                 loaded_frames.append(frame)
 

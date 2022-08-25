@@ -10,9 +10,10 @@ from sklearn.metrics import accuracy_score
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import roc_curve, auc
 
-def load_I3D():
+def load_I3D(pre_train = False):
     base_model = I3D(num_classes=400, modality='rgb')
-    base_model.load_state_dict(torch.load('Models/model_rgb.pth'))
+    if pre_train:
+        base_model.load_state_dict(torch.load('Models/model_rgb.pth'))
 
     base_model.conv3d_1a_7x7 = Unit3Dpy(out_channels=64,
                                         in_channels=1,

@@ -23,12 +23,12 @@ if __name__== "__main__":
     #-------------------------------------------------------------------
     # Define the model parameters
     #-------------------------------------------------------------------
-    lr                = 0.00001
-    epoch             = 1
-    batch_size        = 30
+    lr                = 0.001
+    epoch             = 10
+    batch_size        = 8
     exercise          = 'Words'
-    path_data         = '/home/brayan/AudioVisualData'
-    note              = 'LOO_data_v2'
+    path_data         = '/home/brayan/AudioVisualData_v1'
+    note              = 'LOO_data_v1'
 
     #-------------------------------------------------------------------
     # Select the GPU to improve the evaluation stage
@@ -81,9 +81,9 @@ if __name__== "__main__":
         test_loader  = DataLoader(test_data, batch_size=batch_size, shuffle=True, num_workers=0)
 
         #----------------------------------------------------------------
-        # Load network
+        # Load network2
         #----------------------------------------------------------------
-        model = load_I3D()
+        model = load_I3D(pre_train=True)
         model.to(device)
 
         #----------------------------------------------------------------

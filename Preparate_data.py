@@ -15,13 +15,13 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 print('Running on device: {}'.format(device))
 
-path_data = '/data/Datasets/Parkinson/Facial_Expression_Dataset/AudioVisualDataset_v5'
+path_data = '/data/Datasets/Parkinson/Facial_Expression_Dataset/AudioVisualDataset_v4/Videos_face'
 classes   = os.listdir(path_data)
 
 print('Founded classes are:', classes)
 
-folder_to_save_data = '/home/brayan/AudioVisualData'
-get_face            = True
+folder_to_save_data = '/home/brayan/AudioVisualData_v1'
+get_face            = False
 detector            = MTCNN(select_largest = False,
                             min_face_size  = 10,
                             thresholds     = [0.6, 0.7, 0.7],
