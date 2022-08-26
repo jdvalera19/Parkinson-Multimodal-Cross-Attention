@@ -1,7 +1,7 @@
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "4"
 
 import warnings
 
@@ -25,7 +25,7 @@ if __name__== "__main__":
     #-------------------------------------------------------------------
     lr                = 0.001
     epoch             = 10
-    batch_size        = 8
+    batch_size        = 2
     exercise          = 'Words'
     path_data         = '/home/brayan/AudioVisualData_v1'
     note              = 'LOO_data_v1'
@@ -47,8 +47,8 @@ if __name__== "__main__":
     #-------------------------------------------------------------------
     # List with all patients and list to save the prediction per patient
     #-------------------------------------------------------------------
-    parkinson_patients = ["P{}".format(idx) for idx in [0,1,2,3,4]]
-    control_patients   = ["C{}".format(idx) for idx in [0,1,2]]
+    parkinson_patients = ["P{}".format(idx) for idx in [0,1,2,3,4,5,6,7]]
+    control_patients   = ["C{}".format(idx) for idx in [0,1,2,3,4,5,6,7,8,10,11,12,13,15]]
     patients           = control_patients + parkinson_patients
 
     Y_true_g       = []
