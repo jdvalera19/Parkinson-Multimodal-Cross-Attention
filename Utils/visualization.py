@@ -9,7 +9,7 @@ from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import roc_curve, auc
 
 sns.set_theme()
-sns.set(font="Arial")
+#sns.set(font="Arial")
 
 
 def view_results(data_name):
