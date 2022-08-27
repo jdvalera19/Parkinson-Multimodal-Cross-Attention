@@ -1,13 +1,16 @@
-import pandas as pd
-import numpy  as np
+import pandas            as pd
+import numpy             as np
 import matplotlib.pyplot as plt
-import seaborn as sns
+import matplotlib        as mpl
+import seaborn           as sns
 
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import roc_curve, auc
 
 sns.set_theme()
+sns.set(font="Arial")
+
 
 def view_results(data_name):
     results = pd.read_csv(data_name)

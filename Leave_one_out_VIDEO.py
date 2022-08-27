@@ -1,7 +1,7 @@
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "4"
+os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 
 import warnings
 
@@ -15,8 +15,9 @@ from torchvision      import transforms
 from torch.utils.data import DataLoader
 
 #Custom librarian
-from Utils.dataset import *
-from Utils.nets    import *
+from Utils.dataset       import *
+from Utils.nets          import *
+from Utils.visualization import *
 
 if __name__== "__main__":
 
@@ -27,8 +28,8 @@ if __name__== "__main__":
     epoch             = 10
     batch_size        = 2
     exercise          = 'Words'
-    path_data         = '/home/brayan/AudioVisualData_v1'
-    note              = 'LOO_data_v1'
+    path_data         = '/home/brayan/AudioVisualData_v2'
+    note              = 'LOO_data_v2'
 
     #-------------------------------------------------------------------
     # Select the GPU to improve the evaluation stage
@@ -47,8 +48,8 @@ if __name__== "__main__":
     #-------------------------------------------------------------------
     # List with all patients and list to save the prediction per patient
     #-------------------------------------------------------------------
-    parkinson_patients = ["P{}".format(idx) for idx in [0,1,2,3,4,5,6,7]]
-    control_patients   = ["C{}".format(idx) for idx in [0,1,2,3,4,5,6,7,8,10,11,12,13,15]]
+    parkinson_patients = sorted(os.listdir("{}/Parkinson".format(path_data)))
+    control_patients   = sorted(os.listdir("{}/Control".format(path_data)))
     patients           = control_patients + parkinson_patients
 
     Y_true_g       = []
