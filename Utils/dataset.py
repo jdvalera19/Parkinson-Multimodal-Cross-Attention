@@ -7,6 +7,7 @@ import numpy as np
 from skimage           import io
 from skimage.transform import resize
 from torch.utils.data  import Dataset
+from scipy             import signal
 
 #----------------------------------------------------------------------
 # Transform the numpy data in torch data
@@ -22,6 +23,23 @@ class To_Tensor_video(object):
         image = image.transpose((3,0,1,2))
 
         sample['video'] = torch.from_numpy(image)
+
+        return sample
+
+#----------------------------------------------------------------------
+# Transform the numpy data in torch data
+#----------------------------------------------------------------------
+# Parameters: None
+# Return: the dictionary with samples
+#----------------------------------------------------------------------
+class To_Tensor_audio(object):
+
+    def __call__(self, sample):
+        image = np.array(sample['audio'])
+        #print('To tensor:',image.shape)
+
+        #image = image.transpose((2, 0, 1))
+        sample['audio'] = torch.from_numpy(image)
 
         return sample
 
@@ -159,6 +177,94 @@ class VisualDataset(Dataset):
             idx = idx.tolist()
         
         sample = {'video'        : self.X[idx],
+                  'label'        : self.Y[idx],
+                  "samples_type" : self.samples_type[idx],
+                  "patient_id"   : self.patients[idx],
+                  "exercise"     : self.exercises[idx]}
+        
+        if self.transform:
+            sample = self.transform(sample)
+ 
+        return sample
+
+#----------------------------------------------------------------------
+# Custom Dataset class to generate the tensors to train a model 
+#----------------------------------------------------------------------
+# Parameters: 
+#-----------------------------------------------------------------------
+class AudioDataset(Dataset):
+    def __init__(self, 
+                 names_audios,
+                 duration,
+                 transform):
+        
+        self.audios                       = names_audios
+        self.transform                    = transform
+        self.duration                     = duration//2
+        self.X, self.Y                    = [], []
+        self.samples_type, self.exercises = [], []
+        self.patients                     = []
+        
+        for audio in self.audios:
+            sig, sr = torchaudio.load(audio)
+
+            sig         = self.crop_signal(sig, self.duration)
+            process_sig = self.spectro_gram((sig, sr))
+
+            type_sample = audio.split('/')[-1][0]
+            self.samples_type.append(type_sample)
+
+            label, exercise, patient = self.__get_sample_data__(audio.split('/')[-1])
+            
+            self.X.append(process_sig)
+            self.Y.append(label)
+            self.patients.append(patient)
+            self.exercises.append(exercise)
+
+        #print(np.shape(self.X), np.shape(self.Y))
+        
+    def __get_sample_data__(self, name):
+
+        type_sample = name.split('-')[0][0]
+        patient      = name.split('-')[0]
+        exercise    = name.split('-')[-1][:-4]
+
+        if type_sample == "P":
+            label = 1
+
+        else:
+            label = 0
+
+        return label, exercise, patient
+    
+    def spectro_gram(self, aud, n_mels=64, n_fft=1024, hop_len=None):
+        sig, sr = aud
+        top_db  = 80
+
+        fr, time, spec = signal.spectrogram(sig,fs=48000.,nperseg=480,noverlap=240,nfft=512)
+        spec = 10 * np.log10(spec + 1e-7)
+
+        return spec
+
+    def crop_signal(self, signal, duration):
+
+        middle = len(signal[0,:])//2
+        
+        duration_middle = duration//2
+
+        crop_signal = signal[:,middle-duration_middle:middle+duration_middle]
+
+        return crop_signal
+
+    def __len__(self):
+        return len(self.audios)
+
+    def __getitem__(self, idx):
+
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        
+        sample = {'audio'        : self.X[idx],
                   'label'        : self.Y[idx],
                   "samples_type" : self.samples_type[idx],
                   "patient_id"   : self.patients[idx],
