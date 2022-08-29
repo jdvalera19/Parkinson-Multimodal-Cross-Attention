@@ -23,9 +23,9 @@ if __name__== "__main__":
     epoch             = 25
     batch_size        = 2
     exercise          = 'Phonemes'
-    path_data_test    = '/home/brayan/AudioVisualData_v2'
-    path_data_train   = '/home/brayan/AudioVisualData_v1'
-    note              = 'AUDIO_TTP_data_v1_vs_v2'
+    path_data_test    = '/home/brayan/AudioVisualData_v1'
+    path_data_train   = '/home/brayan/AudioVisualData_v2'
+    note              = 'AUDIO_TTP_data_v2_vs_v1'
 
     #-------------------------------------------------------------------
     # Select the GPU to improve the evaluation stage

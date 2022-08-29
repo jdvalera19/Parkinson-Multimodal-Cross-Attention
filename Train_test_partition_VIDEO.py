@@ -24,13 +24,13 @@ if __name__== "__main__":
     #-------------------------------------------------------------------
     # Define the model parameters
     #-------------------------------------------------------------------
-    lr                = 0.0001
-    epoch             = 100
+    lr                = 0.000001
+    epoch             = 25
     batch_size        = 2
     exercise          = 'Words'
-    path_data_test    = '/home/brayan/AudioVisualData_v2'
-    path_data_train   = '/home/brayan/AudioVisualData_v1'
-    note              = 'TTP_data_v1_vs_v2'
+    path_data_test    = '/home/brayan/AudioVisualData_v1'
+    path_data_train   = '/home/brayan/AudioVisualData_v2'
+    note              = 'TTP_data_v2_vs_v1'
 
     #-------------------------------------------------------------------
     # Select the GPU to improve the evaluation stage
