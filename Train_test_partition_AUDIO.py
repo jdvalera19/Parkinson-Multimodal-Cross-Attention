@@ -19,10 +19,10 @@ if __name__== "__main__":
     #----------------------------------------------------------------
     # Define the model parameters
     #----------------------------------------------------------------
-    lr                = 0.000001
-    epoch             = 25
+    lr                = 0.0000002
+    epoch             = 75
     batch_size        = 2
-    exercise          = 'Phonemes'
+    exercise          = 'Vowels'
     path_data_test    = '/home/brayan/AudioVisualData_v1'
     path_data_train   = '/home/brayan/AudioVisualData_v2'
     note              = 'AUDIO_TTP_data_v2_vs_v1'

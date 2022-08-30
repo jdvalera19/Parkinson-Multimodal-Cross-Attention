@@ -29,7 +29,7 @@ def view_results(data_name):
     print("Precision:{:.4f}, Recall:{:.4f}, F1-score:{:.4f}, Accuraci:{:.4f}, AUC:{:.4f}".format(prf[0][1], prf[1][1], prf[2][1], acc, auc_metric))
     print("==========================================================================================")
 
-def plot_results_per_patient(result_path, title):
+def plot_results_per_patient(result_path, title, order = None):
     data = pd.read_csv(result_path)
     samples  = list(data['Sample_ids'].values)
     pk_props = list(data['PK_props'].values)
@@ -45,9 +45,15 @@ def plot_results_per_patient(result_path, title):
                               "Class"    : class_
                             })
 
-
-    plt.figure(figsize=(13,4))
-    g = sns.barplot(x="Patients", y="Props", data=plot_data, palette=['limegreen', "mediumpurple"], capsize=.2, hue='Class', dodge=False)
-    plt.title(title)
-    g.axhline(0.5, color='r')
-    plt.savefig('Images/{}.pdf'.format(title))
+    if order:
+        plt.figure(figsize=(13,4))
+        g = sns.barplot(x="Patients", y="Props", data=plot_data, palette=['limegreen', "mediumpurple"], capsize=.2, hue='Class', dodge=False, order=order)
+        plt.title(title)
+        g.axhline(0.5, color='r')
+        plt.savefig('Images/{}.pdf'.format(title))
+    else:
+        plt.figure(figsize=(13,4))
+        g = sns.barplot(x="Patients", y="Props", data=plot_data, palette=['limegreen', "mediumpurple"], capsize=.2, hue='Class', dodge=False)
+        plt.title(title)
+        g.axhline(0.5, color='r')
+        plt.savefig('Images/{}.pdf'.format(title))

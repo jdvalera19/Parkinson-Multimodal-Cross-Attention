@@ -80,6 +80,11 @@ def train_model_CE(model, num_epochs=3, dataloaders=None, modality=None, lr = 0.
                         optimizer.zero_grad()
                         loss.backward()
                         optimizer.step()
+                    
+                    else:
+                        if epoch + 1 == num_epochs:
+                            activations = model.get_embs(img)
+                            print(activations.shape)
 
                         
                     running_loss += loss.item()
