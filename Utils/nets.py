@@ -88,6 +88,7 @@ def train_model_CE(model, num_epochs=3, dataloaders=None, modality=None, lr = 0.
             C_props = []
             Samples = []
             exercises = []
+            repetitions = []
 
             stream = tqdm(total=len(dataloaders[phase]), desc = 'Epoch {}/{}-{}-loss:{:.4f}-acc:{:.4f}'.format(epoch+1, num_epochs, phase, running_loss, running_acc))
 
@@ -121,6 +122,7 @@ def train_model_CE(model, num_epochs=3, dataloaders=None, modality=None, lr = 0.
                         C_props   += list(logits.cpu().detach().numpy()[:,0])
                         Samples   += sample
                         exercises += exercise
+                        repetitions += repetition
 
                         if epoch + 1 == num_epochs:
                             activations = model.get_embs(img)
@@ -134,7 +136,7 @@ def train_model_CE(model, num_epochs=3, dataloaders=None, modality=None, lr = 0.
 
                     pbar.update(1)
     
-    return model, Y, Y_pred, PK_props, C_props, Samples, exercises
+    return model, Y, Y_pred, PK_props, C_props, Samples, exercises, repetition
 
 
 
