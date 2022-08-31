@@ -1,4 +1,11 @@
+import os
+import shutil
+import imageio
 import torch
+import cv2
+
+import matplotlib.pyplot as plt
+import numpy             as np
 
 from tqdm            import tqdm
 from Utils.i3dpt     import I3D, Unit3Dpy
@@ -33,6 +40,26 @@ def load_resnet50(pre_train = True):
 
     return base_model
 
+#----------------------------------------------------------------------
+# Training a model using the binary cross entropy loss
+#----------------------------------------------------------------------
+# Parameters: 
+# Return: 
+#-----------------------------------------------------------------------
+def save_activations(activations, sample, exercise, repetition):
+    cm = plt.get_cmap('copper')
+
+    for idx, video in enumerate(sample):
+        try:
+            os.mkdir('Images/' + video)
+        except OSError as error:
+            None
+
+        count = 0
+        activation = 255.*cm(activations[idx, 0, :, :, :].cpu().detach().numpy())
+        activation = activation.astype('uint8')
+        imageio.mimwrite('{}/{}-{}-{}.gif'.format('Images/' + video ,video, repetition[idx], exercise[idx]), activation, 'GIF', duration=0.2)
+        
 
 #----------------------------------------------------------------------
 # Training a model using cross entropy loss function
@@ -68,10 +95,11 @@ def train_model_CE(model, num_epochs=3, dataloaders=None, modality=None, lr = 0.
 
                 for index, data in enumerate(dataloaders[phase]):
                     
-                    img    = data[modality].type(torch.float).cuda()
-                    labels = data['label'].cuda()
-                    sample = data['patient_id']
-                    exercise = data['exercise']
+                    img        = data[modality].type(torch.float).cuda()
+                    labels     = data['label'].cuda()
+                    sample     = data['patient_id']
+                    repetition = data['repetition']
+                    exercise   = data['exercise']
 
                     outputs     = model(img)
                     loss        = criterion(outputs, labels)
@@ -80,12 +108,6 @@ def train_model_CE(model, num_epochs=3, dataloaders=None, modality=None, lr = 0.
                         optimizer.zero_grad()
                         loss.backward()
                         optimizer.step()
-                    
-                    else:
-                        if epoch + 1 == num_epochs:
-                            activations = model.get_embs(img)
-                            print(activations.shape)
-
                         
                     running_loss += loss.item()
                     logits       = torch.nn.Softmax(dim=1)(outputs)
@@ -100,6 +122,9 @@ def train_model_CE(model, num_epochs=3, dataloaders=None, modality=None, lr = 0.
                         Samples   += sample
                         exercises += exercise
 
+                        if epoch + 1 == num_epochs:
+                            activations = model.get_embs(img)
+                            save_activations(activations, sample, exercise, repetition)
 
                     total_samples = index + 1
 

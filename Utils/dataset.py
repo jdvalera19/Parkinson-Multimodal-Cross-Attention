@@ -8,6 +8,7 @@ from skimage           import io
 from skimage.transform import resize
 from torch.utils.data  import Dataset
 from scipy             import signal
+from tqdm              import tqdm
 
 #----------------------------------------------------------------------
 # Transform the numpy data in torch data
@@ -125,28 +126,35 @@ class VisualDataset(Dataset):
         self.duration                     = duration//2
         self.X, self.Y                    = [], []
         self.samples_type, self.exercises = [], []
-        self.patients                     = []
+        self.patients, self.repetition    = [], []
         
-        for video in self.videos:
-            frames     = os.listdir(video)
-            frames.sort()
+        stream = tqdm(total=len(self.videos), desc = 'loading data')
 
-            type_sample = video.split('/')[-1][0]
-            self.samples_type.append(type_sample)
+        with stream as pbar:
+            for idx, video in enumerate(self.videos):
+                frames     = os.listdir(video)
+                frames.sort()
 
-            label, exercise, patient = self.__get_sample_data__(video.split('/')[-1])
-            loaded_frames = self.__load_frames__(frames, video)
-            
-            self.X.append(loaded_frames)
-            self.Y.append(label)
-            self.patients.append(patient)
-            self.exercises.append(exercise)
+                type_sample = video.split('/')[-1][0]
+                self.samples_type.append(type_sample)
+
+                label, exercise, patient, repetition = self.__get_sample_data__(video.split('/')[-1])
+                loaded_frames = self.__load_frames__(frames, video)
+                
+                self.X.append(loaded_frames)
+                self.Y.append(label)
+                self.patients.append(patient)
+                self.exercises.append(exercise)
+                self.repetition.append(repetition)
+
+                pbar.update(1)
         
     def __get_sample_data__(self, name):
 
-        type_sample = name.split('-')[0][0]
+        type_sample  = name.split('-')[0][0]
         patient      = name.split('-')[0]
-        exercise    = name.split('-')[-1][:-4]
+        repetition   = name.split('-')[1]
+        exercise     = name.split('-')[-1][:-4]
 
         if type_sample == "P":
             label = 1
@@ -154,7 +162,7 @@ class VisualDataset(Dataset):
         else:
             label = 0
 
-        return label, exercise, patient
+        return label, exercise, patient, repetition
     
     def __load_frames__(self, frames, video_name):
         loaded_frames = []
@@ -180,6 +188,7 @@ class VisualDataset(Dataset):
                   'label'        : self.Y[idx],
                   "samples_type" : self.samples_type[idx],
                   "patient_id"   : self.patients[idx],
+                  "repetition"   : self.repetition[idx],
                   "exercise"     : self.exercises[idx]}
         
         if self.transform:
