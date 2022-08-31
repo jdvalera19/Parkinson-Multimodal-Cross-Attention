@@ -70,10 +70,10 @@ if __name__== "__main__":
         # Generate data to train and validate the model
         #----------------------------------------------------------------
         transformations = transforms.Compose([To_Tensor_video()])
-        train_data      = VisualDataset(names_videos = videos_Train[:1],
+        train_data      = VisualDataset(names_videos = videos_Train,
                                         duration     = min_duration_video,
                                         transform    = transformations)
-        test_data       = VisualDataset(names_videos = videos_Test[:1],
+        test_data       = VisualDataset(names_videos = videos_Test,
                                         duration     = min_duration_video,
                                         transform    = transformations)
 
