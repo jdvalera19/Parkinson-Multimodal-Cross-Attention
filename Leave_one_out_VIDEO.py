@@ -24,10 +24,10 @@ if __name__== "__main__":
     #-------------------------------------------------------------------
     # Define the model parameters
     #-------------------------------------------------------------------
-    lr          = 0.00001
-    epoch       = 25
+    lr          = 0.001
+    epoch       = 10
     batch_size  = 1
-    exercise    = 'Vowels'
+    exercise    = 'Phonemes'
     path_data   = '/home/brayan/AudioVisualData_v2'
     note        = 'VIDEO:LOO_data_v2'
 

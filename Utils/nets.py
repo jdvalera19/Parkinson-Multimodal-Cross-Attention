@@ -136,7 +136,7 @@ def train_model_CE(model, num_epochs=3, dataloaders=None, modality=None, lr = 0.
 
                     pbar.update(1)
     
-    return model, Y, Y_pred, PK_props, C_props, Samples, exercises, repetition
+    return model, Y, Y_pred, PK_props, C_props, Samples, exercises, repetitions
 
 
 
