@@ -72,6 +72,8 @@ for class_ in classes:
                         img = cv2.imread('{}/{}'.format(frames_path, frame_name))
                         img = img[box[1]:box[1]+box[3], box[0]:box[0]+box[2], :]
                         
-                        cv2.imwrite('{}/{}'.format(frames_path, frame_name), img)
-                    
+                        try:
+                            cv2.imwrite('{}/{}'.format(frames_path, frame_name), img)
+                        except:
+                            os.remove('{}/{}'.format(frames_path, frame_name))
 print('Data saved at folder {}'.format(folder_to_save_data))

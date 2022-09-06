@@ -1,7 +1,7 @@
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "4"
 
 import warnings
 
@@ -29,7 +29,7 @@ if __name__== "__main__":
     batch_size  = 1
     exercise    = 'Words'
     path_data   = '/home/brayan/AudioVisualData_v2'
-    note        = 'VIDEO:LOO_data_v2'
+    note        = 'VIDEO:LOO_data_v2(reduced cropping)'
 
     #-------------------------------------------------------------------
     # Select the GPU to improve the evaluation stage
