@@ -10,6 +10,7 @@ import numpy             as np
 from tqdm            import tqdm
 from Utils.i3dpt     import I3D, Unit3Dpy
 from sklearn.metrics import accuracy_score
+from torchmetrics    import Accuracy
 
 
 def load_I3D(pre_train = False):
@@ -46,7 +47,7 @@ def load_resnet50(pre_train = True):
 # Parameters: 
 # Return: 
 #-----------------------------------------------------------------------
-def save_activations(activations, sample, exercise, repetition):
+def save_activations(activations, sample, exercise, repetition, type):
     cm = plt.get_cmap('copper')
 
     for idx, video in enumerate(sample):
@@ -55,10 +56,9 @@ def save_activations(activations, sample, exercise, repetition):
         except OSError as error:
             None
 
-        count = 0
         activation = 255.*cm(activations[idx, 0, :, :, :].cpu().detach().numpy())
         activation = activation.astype('uint8')
-        imageio.mimwrite('{}/{}-{}-{}.gif'.format('Images/' + video ,video, repetition[idx], exercise[idx]), activation, 'GIF', duration=0.2)
+        imageio.mimwrite('{}/{}-{}-{}-{}.gif'.format('Images/' + video , type, video, repetition[idx], exercise[idx]), activation, 'GIF', duration=0.2)
         
 
 #----------------------------------------------------------------------
@@ -69,9 +69,10 @@ def save_activations(activations, sample, exercise, repetition):
 #-----------------------------------------------------------------------
 def train_model_CE(model, num_epochs=3, dataloaders=None, modality=None, lr = 0.00001):
 
-    criterion   = torch.nn.CrossEntropyLoss()
-    optimizer   = torch.optim.Adam(model.parameters(), lr=lr)
-    
+    criterion = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    accuracy  = Accuracy().cuda()
+
     for epoch in range(num_epochs):
         for phase in dataloaders.keys():
             if phase == 'train':
@@ -125,13 +126,13 @@ def train_model_CE(model, num_epochs=3, dataloaders=None, modality=None, lr = 0.
                         repetitions += repetition
 
                         if epoch + 1 == num_epochs:
-                            activations = model.get_embs(img)
-                            save_activations(activations, sample, exercise, repetition)
+                            activations_first = model.get_embs_first(img)
+                            activations_last = model.get_embs_last(img)
+                            save_activations(activations_first, sample, exercise, repetition, 'first')
+                            save_activations(activations_last, sample, exercise, repetition, 'last')
 
                     total_samples = index + 1
-
-                    running_acc = accuracy_score(Y, Y_pred)
-
+                    running_acc = accuracy(logits, labels).item()
                     stream.desc = 'Epoch {}/{}-{}-loss:{:.4f}-acc:{:.4f}'.format(epoch+1, num_epochs, phase, running_loss/total_samples, running_acc)
 
                     pbar.update(1)

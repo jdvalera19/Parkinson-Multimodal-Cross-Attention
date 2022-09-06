@@ -289,8 +289,6 @@ class I3D(torch.nn.Module):
         out = self.mixed_5c(out)
         out = self.avg_pool(out)
         out = self.dropout(out)
-        
-        # print(out.shape)
         #emb = out.view(-1,1024*4)
 
         out = self.conv3d_0c_1x1(out)
@@ -301,10 +299,29 @@ class I3D(torch.nn.Module):
         #return out, emb
         return out
 
-    def get_embs(self, inp):
+    def get_embs_first(self, inp):
         emb = self.conv3d_1a_7x7(inp)
         return emb
 
+    def get_embs_last(self, inp):
+        emb = self.conv3d_1a_7x7(inp)
+        out = self.maxPool3d_2a_3x3(emb)
+        out = self.conv3d_2b_1x1(out)
+        out = self.conv3d_2c_3x3(out)
+        out = self.maxPool3d_3a_3x3(out)
+        out = self.mixed_3b(out)
+        out = self.mixed_3c(out)
+        out = self.maxPool3d_4a_3x3(out)
+        out = self.mixed_4b(out)
+        out = self.mixed_4c(out)
+        out = self.mixed_4d(out)
+        out = self.mixed_4e(out)
+        out = self.mixed_4f(out)
+        out = self.maxPool3d_5a_2x2(out)
+        out = self.mixed_5b(out)
+        emb = self.mixed_5c(out)
+
+        return emb
         
 
     def load_tf_weights(self, sess):
