@@ -1,7 +1,7 @@
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "6"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 import torch
 
@@ -19,12 +19,13 @@ if __name__== "__main__":
     #----------------------------------------------------------------
     # Define the model parameters
     #----------------------------------------------------------------
-    lr                = 0.0000002
-    epoch             = 75
-    batch_size        = 2
-    exercise          = 'Words'
+    lr                = 0.00007
+    epoch             = 7
+    batch_size        = 8
+    exercise          = 'Vowels'
     path_data         = '/home/brayan/AudioVisualData_v2'
     note              = 'AUDIO:LOO_data_v2'
+    s_duration        = False
 
     #-------------------------------------------------------------------
     # Select the GPU to improve the evaluation stage
@@ -53,28 +54,32 @@ if __name__== "__main__":
     C_props_g      = []
     samples_ids_g  = []
     exercises_g    = []
+    repetitions_g  = []
 
     for patient in patients:
-        audios_Train, audios_Test, _, _, min_duration_audio, _ = generate_train_and_test_sets(path_base=path_data, patient_val=[patient], exercise_s=exercise)
+        audios_Train, audios_Test, _, _, duration_audio, _ = generate_train_and_test_sets(path_base   = path_data, 
+                                                                                              patient_val = [patient],
+                                                                                              exercise_s  = exercise,
+                                                                                              duration    = s_duration)
         print("==========================================================================================")
-        print("Validating Patient {}: Duration Frames:{}".format(patient, min_duration_audio))
+        print("Validating Patient {}: Duration Frames:{}".format(patient, duration_audio))
 
         #----------------------------------------------------------------
         # Generate data to train and validate the model
         #----------------------------------------------------------------
         transformations = transforms.Compose([To_Tensor_audio()])
         train_data      = AudioDataset(names_audios  = audios_Train,
-                                        duration     = min_duration_audio,
+                                        duration     = duration_audio,
                                         transform    = transformations)
         test_data       = AudioDataset(names_audios  = audios_Test,
-                                        duration     = min_duration_audio,
+                                        duration     = duration_audio,
                                         transform    = transformations)
 
         print('Training samples: {}'.format(train_data.__len__()))
         print('Test samples: {}'.format(test_data.__len__()))
 
         train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=0)
-        test_loader  = DataLoader(test_data, batch_size=batch_size, shuffle=True, num_workers=0)
+        test_loader  = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=0)
 
         #----------------------------------------------------------------
         # Load network2
@@ -86,11 +91,11 @@ if __name__== "__main__":
         # Train and save the model
         #----------------------------------------------------------------
         dataloaders = {"train":train_loader, "test":test_loader}
-        model, Y_true, Y_pred, PK_props, C_props, sample_ids, exercises = train_model_CE(model  = model,
-                                                                                    num_epochs  = epoch,
-                                                                                    dataloaders = dataloaders,
-                                                                                    modality    = 'audio',
-                                                                                    lr          = lr)
+        model, Y_true, Y_pred, PK_props, C_props, sample_ids, exercises, repetitions = train_model_CE_AUDIO(model       = model,
+                                                                                                            num_epochs  = epoch,
+                                                                                                            dataloaders = dataloaders,
+                                                                                                            modality    = 'audio',
+                                                                                                            lr          = lr)
 
         Y_true_g        += Y_true
         Y_pred_g        += Y_pred
@@ -98,15 +103,17 @@ if __name__== "__main__":
         C_props_g       += C_props
         samples_ids_g   += sample_ids
         exercises_g     += exercises
+        repetitions_g   += repetitions
     
-    dataframe_of_results_name = 'Results/Note:{}-Lr:{}-Epoch:{}-Exercise:{}.csv'.format(note, lr, epoch, exercise)
+    dataframe_of_results_name = 'Results/Note:{}-Lr:{}-Epoch:{}-Exercise:{}-duration_size:{}.csv'.format(note, lr, epoch, exercise, s_duration)
 
     data_frame_of_results = pd.DataFrame({'Y_true'       : Y_true_g,
                                           'Y_pred'       : Y_pred_g,
                                           'PK_props'     : PK_props_g,
                                           'C_props'      : C_props_g,
                                           'Sample_ids'   : samples_ids_g,
-                                          'Exercise_g'   : exercises_g})
+                                          'Exercise_g'   : exercises_g,
+                                          'Repetition'   : repetitions_g})
 
     data_frame_of_results.to_csv(dataframe_of_results_name)
 

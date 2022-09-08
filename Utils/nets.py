@@ -132,7 +132,79 @@ def train_model_CE(model, num_epochs=3, dataloaders=None, modality=None, lr = 0.
                             save_activations(activations_last, sample, exercise, repetition, 'last')
 
                     total_samples = index + 1
-                    running_acc = accuracy(logits, labels).item()
+                    running_acc = accuracy_score(Y, Y_pred)
+                    stream.desc = 'Epoch {}/{}-{}-loss:{:.4f}-acc:{:.4f}'.format(epoch+1, num_epochs, phase, running_loss/total_samples, running_acc)
+
+                    pbar.update(1)
+    
+    return model, Y, Y_pred, PK_props, C_props, Samples, exercises, repetitions
+
+
+#----------------------------------------------------------------------
+# Training a model using cross entropy loss function
+#----------------------------------------------------------------------
+# Parameters: 
+# Return: 
+#-----------------------------------------------------------------------
+def train_model_CE_AUDIO(model, num_epochs=3, dataloaders=None, modality=None, lr = 0.00001):
+
+    criterion = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
+    for epoch in range(num_epochs):
+        for phase in dataloaders.keys():
+            if phase == 'train':
+                model.train()
+            else:
+                model.eval()
+
+            running_loss = 0.0
+            running_acc  = 0.0
+
+            Y      = []
+            Y_pred = []
+            PK_props = []
+            C_props = []
+            Samples = []
+            exercises = []
+            repetitions = []
+
+            stream = tqdm(total=len(dataloaders[phase]), desc = 'Epoch {}/{}-{}-loss:{:.4f}-acc:{:.4f}'.format(epoch+1, num_epochs, phase, running_loss, running_acc))
+
+            with stream as pbar:
+
+                for index, data in enumerate(dataloaders[phase]):
+                    
+                    img        = data[modality].type(torch.float).cuda()
+                    labels     = data['label'].cuda()
+                    sample     = data['patient_id']
+                    repetition = data['repetition']
+                    exercise   = data['exercise']
+
+                    outputs     = model(img)
+                    loss        = criterion(outputs, labels)
+
+                    if phase == 'train':
+                        optimizer.zero_grad()
+                        loss.backward()
+                        optimizer.step()
+                        
+                    running_loss += loss.item()
+                    logits       = torch.nn.Softmax(dim=1)(outputs)
+
+                    predicted = logits.max(1).indices
+                    Y_pred    += list(predicted.cpu().detach().numpy())
+                    Y         += list(labels.cpu().detach().numpy())
+
+                    if phase == 'test':
+                        PK_props  += list(logits.cpu().detach().numpy()[:,1])
+                        C_props   += list(logits.cpu().detach().numpy()[:,0])
+                        Samples   += sample
+                        exercises += exercise
+                        repetitions += repetition
+
+                    total_samples = index + 1
+                    running_acc = accuracy_score(Y, Y_pred)
                     stream.desc = 'Epoch {}/{}-{}-loss:{:.4f}-acc:{:.4f}'.format(epoch+1, num_epochs, phase, running_loss/total_samples, running_acc)
 
                     pbar.update(1)

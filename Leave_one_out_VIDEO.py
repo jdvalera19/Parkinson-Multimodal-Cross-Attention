@@ -1,7 +1,7 @@
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "4"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 import warnings
 
@@ -26,10 +26,11 @@ if __name__== "__main__":
     #-------------------------------------------------------------------
     lr          = 0.001
     epoch       = 10
-    batch_size  = 1
-    exercise    = 'Phonemes'
+    batch_size  = 5
+    exercise    = 'Vowels'
     path_data   = '/home/brayan/AudioVisualData_v2'
-    note        = 'VIDEO:LOO_data_v2(reduced cropping)'
+    note        = 'VIDEO:LOO_data_v2_load_frames_v2'
+    s_duration  = False
 
     #-------------------------------------------------------------------
     # Select the GPU to improve the evaluation stage
@@ -61,21 +62,26 @@ if __name__== "__main__":
     repetitions_g  = []
 
     for patient in patients:
-        _, _, videos_Train, videos_Test, _, min_duration_video = generate_train_and_test_sets(path_base=path_data, patient_val=[patient], exercise_s=exercise)
+        _, _, videos_Train, videos_Test, _, duration_video = generate_train_and_test_sets(path_base   = path_data, 
+                                                                                          patient_val = [patient],
+                                                                                          exercise_s  = exercise, 
+                                                                                          duration    = s_duration)
         print("==========================================================================================")
-        print("Validating Patient {}: Duration Frames:{}".format(patient, min_duration_video))
+        print("Validating Patient {}: Duration Frames:{}".format(patient, duration_video))
 
 
         #----------------------------------------------------------------
         # Generate data to train and validate the model
         #----------------------------------------------------------------
         transformations = transforms.Compose([To_Tensor_video()])
-        train_data      = VisualDataset(names_videos = videos_Train,
-                                        duration     = min_duration_video,
-                                        transform    = transformations)
-        test_data       = VisualDataset(names_videos = videos_Test,
-                                        duration     = min_duration_video,
-                                        transform    = transformations)
+        train_data      = VisualDataset(names_videos   = videos_Train,
+                                        duration       = duration_video,
+                                        duration_size  = s_duration,
+                                        transform      = transformations)
+        test_data       = VisualDataset(names_videos   = videos_Test,
+                                        duration       = duration_video,
+                                        duration_size  = s_duration,
+                                        transform      = transformations)
 
         print('Training samples: {}'.format(train_data.__len__()))
         print('Test samples: {}'.format(test_data.__len__()))
@@ -107,8 +113,7 @@ if __name__== "__main__":
         exercises_g     += exercises
         repetitions_g   += repetitions
         
-
-    dataframe_of_results_name = 'Results/Note:{}-Lr:{}-Epoch:{}-Exercise:{}.csv'.format(note, lr, epoch, exercise)
+    dataframe_of_results_name = 'Results/Note:{}-Lr:{}-Epoch:{}-Exercise:{}-duration_size:{}.csv'.format(note, lr, epoch, exercise, s_duration)
 
     data_frame_of_results = pd.DataFrame({'Y_true'       : Y_true_g,
                                           'Y_pred'       : Y_pred_g,

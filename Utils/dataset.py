@@ -67,13 +67,35 @@ def identify_min_AVduration(data_audio, data_video):
     return min_duration, min_frames
 
 #----------------------------------------------------------------------
+# Identify the most low duration in the exercise selected
+#----------------------------------------------------------------------
+# Parameters: 
+# Return: 
+#-----------------------------------------------------------------------
+def identify_max_AVduration(data_audio, data_video):
+    max_duration = 0
+    max_frames   = 0 
+
+    for audio in data_audio:
+        sig, sr = torchaudio.load(audio)
+        if sig[0,:].shape[0] > max_duration:
+            max_duration = sig[0,:].shape[0]
+
+    for video in data_video:
+        number_of_frames= len(os.listdir(video))
+        if number_of_frames > max_frames:
+            max_frames = number_of_frames
+
+    return max_duration, max_frames
+
+#----------------------------------------------------------------------
 # Divide the avanible data into subset to make training and validation 
 # takin into account leave one out cross validation
 #----------------------------------------------------------------------
 # Parameters: 
 # Return: 
 #-----------------------------------------------------------------------
-def generate_train_and_test_sets(path_base = None, patient_val = None, exercise_s = None):
+def generate_train_and_test_sets(path_base = None, patient_val = None, exercise_s = None, duration = None):
 
     videos_T = []
     audios_T = []
@@ -106,9 +128,12 @@ def generate_train_and_test_sets(path_base = None, patient_val = None, exercise_
                         videos_T += [path_modality_frames + '/' + name_string for name_string in data]
                         audios_T += [path_modality_audio + '/' + name_string[:-4] + '.mp3' for name_string in data]
 
-    min_duration_audio, min_duration_video = identify_min_AVduration(audios_V + audios_T, videos_V + videos_T)
-                        
-    return audios_T, audios_V, videos_T, videos_V, min_duration_audio, min_duration_video
+    if duration:
+        duration_audio, duration_video = identify_max_AVduration(audios_V + audios_T, videos_V + videos_T)
+
+    else:
+        duration_audio, duration_video = identify_min_AVduration(audios_V + audios_T, videos_V + videos_T)             
+    return audios_T, audios_V, videos_T, videos_V, duration_audio, duration_video
 
 #----------------------------------------------------------------------
 # Custom Dataset class to generate the tensors to train a model 
@@ -119,11 +144,13 @@ class VisualDataset(Dataset):
     def __init__(self, 
                  names_videos,
                  duration,
+                 duration_size,
                  transform):
         
         self.videos                       = names_videos
         self.transform                    = transform
         self.duration                     = duration//2
+        self.duration_size                = duration_size
         self.X, self.Y                    = [], []
         self.samples_type, self.exercises = [], []
         self.patients, self.repetition    = [], []
@@ -139,7 +166,10 @@ class VisualDataset(Dataset):
                 self.samples_type.append(type_sample)
 
                 label, exercise, patient, repetition = self.__get_sample_data__(video.split('/')[-1])
-                loaded_frames = self.__load_frames__(frames, video)
+                if self.duration_size:
+                    loaded_frames = self.__load_frames__(frames, video)
+                else:
+                    loaded_frames = self.__load_frames_v2__(frames, video)
                 
                 self.X.append(loaded_frames)
                 self.Y.append(label)
@@ -165,6 +195,28 @@ class VisualDataset(Dataset):
         return label, exercise, patient, repetition
     
     def __load_frames__(self, frames, video_name):
+        loaded_frames = []
+
+        if len(frames) < self.duration:
+            while len(frames) < self.duration:
+                rand_index = np.random.randint(len(frames))
+                rand_frame = frames[rand_index]
+                frames.insert(rand_index, rand_frame)
+            
+        else:
+            while len(frames) > self.duration:
+                rand_index = np.random.randint(len(frames))
+                frames.pop(rand_index)
+
+        for frame_index, frame_n in enumerate(frames):
+            frame = io.imread(video_name + '/' + frame_n, as_gray=True)
+            frame = resize(frame, (224, 224), anti_aliasing=True)
+            frame = np.expand_dims(frame, 2)
+            loaded_frames.append(frame)
+
+        return loaded_frames
+    
+    def __load_frames_v2__(self, frames, video_name):
         loaded_frames = []
         middle = len(frames)//2
 
@@ -212,7 +264,7 @@ class AudioDataset(Dataset):
         self.duration                     = duration//2
         self.X, self.Y                    = [], []
         self.samples_type, self.exercises = [], []
-        self.patients                     = []
+        self.patients, self.repetition    = [], []
         
         for audio in self.audios:
             sig, sr = torchaudio.load(audio)
@@ -223,20 +275,22 @@ class AudioDataset(Dataset):
             type_sample = audio.split('/')[-1][0]
             self.samples_type.append(type_sample)
 
-            label, exercise, patient = self.__get_sample_data__(audio.split('/')[-1])
+            label, exercise, patient, repetition = self.__get_sample_data__(audio.split('/')[-1])
             
             self.X.append(process_sig)
             self.Y.append(label)
             self.patients.append(patient)
             self.exercises.append(exercise)
+            self.repetition.append(repetition)
 
         #print(np.shape(self.X), np.shape(self.Y))
         
     def __get_sample_data__(self, name):
 
-        type_sample = name.split('-')[0][0]
+        type_sample  = name.split('-')[0][0]
         patient      = name.split('-')[0]
-        exercise    = name.split('-')[-1][:-4]
+        repetition   = name.split('-')[1]
+        exercise     = name.split('-')[-1][:-4]
 
         if type_sample == "P":
             label = 1
@@ -244,7 +298,7 @@ class AudioDataset(Dataset):
         else:
             label = 0
 
-        return label, exercise, patient
+        return label, exercise, patient, repetition
     
     def spectro_gram(self, aud, n_mels=64, n_fft=1024, hop_len=None):
         sig, sr = aud
@@ -277,6 +331,7 @@ class AudioDataset(Dataset):
                   'label'        : self.Y[idx],
                   "samples_type" : self.samples_type[idx],
                   "patient_id"   : self.patients[idx],
+                  "repetition"   : self.repetition[idx],
                   "exercise"     : self.exercises[idx]}
         
         if self.transform:
