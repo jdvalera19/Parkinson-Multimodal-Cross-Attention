@@ -4,9 +4,11 @@ import matplotlib.pyplot as plt
 import matplotlib        as mpl
 import seaborn           as sns
 
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import precision_recall_fscore_support
-from sklearn.metrics import roc_curve, auc
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+from sklearn           import metrics
+from sklearn.metrics   import accuracy_score
+from sklearn.metrics   import precision_recall_fscore_support
+from sklearn.metrics   import roc_curve, auc
 
 def view_results(data_name):
     results = pd.read_csv(data_name)
@@ -71,5 +73,30 @@ def generate_final_visualization(resultAudio, resultVideo, title, key):
 
     plt.xticks(rotation=90)
     plt.savefig('Images/{}.pdf'.format(title))
+
+def generate_confusion_matix(results, key, modality):
+
+    data = pd.read_csv(results)
+    data = data[data['Exercise_g']==key]
+
+    Y_true = data['Y_true']
+    Y_pred = data['Y_pred']
+
+    colorlist=['white', 'mediumpurple']
+    newcmp = LinearSegmentedColormap.from_list('testCmap', colors=colorlist, N=256)
+
+    confusion_matrix = metrics.confusion_matrix(Y_true, Y_pred)
+
+    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = ['Control', 'Parkinson'])
+
+    cm_display.plot(cmap = newcmp)
+    plt.title(key)
+    plt.savefig('Images/confussion matrix: {}-{}.pdf'.format(key, modality))
+
+
+    
+
+
+
 
     
