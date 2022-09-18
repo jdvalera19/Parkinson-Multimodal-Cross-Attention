@@ -24,7 +24,7 @@ def view_results(data_name):
     auc_metric = auc(fpr, tpr)
     
     print("==========================================================================================")
-    print("Precision:{:.4f}, Recall:{:.4f}, F1-score:{:.4f}, Accuraci:{:.4f}, AUC:{:.4f}".format(prf[0][1], prf[1][1], prf[2][1], acc, auc_metric))
+    print("Precision:{:.4f}, Recall:{:.4f}, F1-score:{:.4f}, Accuracy:{:.4f}, AUC:{:.4f}".format(prf[0][1], prf[1][1], prf[2][1], acc, auc_metric))
     print("==========================================================================================")
 
 def generate_final_visualization(resultAudio, resultVideo, title, key):
@@ -74,24 +74,34 @@ def generate_final_visualization(resultAudio, resultVideo, title, key):
     plt.xticks(rotation=90)
     plt.savefig('Images/{}.pdf'.format(title))
 
-def generate_confusion_matix(results, key, modality):
+def generate_confusion_matix(results, key, modality, aucs):
 
     data = pd.read_csv(results)
     data = data[data['Exercise_g']==key]
 
     Y_true = data['Y_true']
     Y_pred = data['Y_pred']
+    PK_props = data['PK_props']
 
-    colorlist=['white', 'mediumpurple']
-    newcmp = LinearSegmentedColormap.from_list('testCmap', colors=colorlist, N=256)
+    fpr, tpr, thresholds = roc_curve(Y_true, PK_props, pos_label=1)
+    auc_metric = auc(fpr, tpr)
+    
+    #print(key)
+    #print("Precision:{:.4f}, Recall:{:.4f}, F1-score:{:.4f}, Accuracy:{:.4f}, AUC:{:.4f}".format(prf[0][1], prf[1][1], prf[2][1], acc, auc_metric))
+    #print("==========================================================================================")
 
-    confusion_matrix = metrics.confusion_matrix(Y_true, Y_pred)
+    aucs[key] = auc_metric
 
-    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = ['Control', 'Parkinson'])
+    #colorlist=['white', 'mediumpurple']
+    #newcmp = LinearSegmentedColormap.from_list('testCmap', colors=colorlist, N=256)
 
-    cm_display.plot(cmap = newcmp)
-    plt.title(key)
-    plt.savefig('Images/confussion matrix: {}-{}.pdf'.format(key, modality))
+    #confusion_matrix = metrics.confusion_matrix(Y_true, Y_pred)
+
+    #cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = ['Control', 'Parkinson'])
+
+    #cm_display.plot(cmap = newcmp)
+    #plt.title(key)
+    #plt.savefig('Images/confussion matrix: {}-{}.pdf'.format(key, modality))
 
 
     
