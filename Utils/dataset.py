@@ -114,7 +114,7 @@ def generate_train_and_test_sets(path_base = None, patient_val = None, exercise_
             exercises        = os.listdir(path_patient)
 
             for exercise in exercises:
-                if exercise_s == exercise:
+                #if exercise_s == exercise:
                     path_exercise         = path_patient + '/{}'.format(exercise)
 
                     path_modality_frames = path_exercise + '/{}'.format('frames')

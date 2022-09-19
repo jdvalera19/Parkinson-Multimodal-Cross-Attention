@@ -79,9 +79,12 @@ def generate_confusion_matix(results, key, modality, aucs):
     data = pd.read_csv(results)
     data = data[data['Exercise_g']==key]
 
-    Y_true = data['Y_true']
-    Y_pred = data['Y_pred']
-    PK_props = data['PK_props']
+    Y_true      = data['Y_true'].values
+    Y_pred      = data['Y_pred'].values
+    PK_props    = data['PK_props'].values
+    Samples_ids = data['Sample_ids'].values
+    Exercises   = data['Exercise_g'].values
+    Repetitions = data['Repetition'].values
 
     fpr, tpr, thresholds = roc_curve(Y_true, PK_props, pos_label=1)
     auc_metric = auc(fpr, tpr)
@@ -92,16 +95,24 @@ def generate_confusion_matix(results, key, modality, aucs):
 
     aucs[key] = auc_metric
 
-    #colorlist=['white', 'mediumpurple']
-    #newcmp = LinearSegmentedColormap.from_list('testCmap', colors=colorlist, N=256)
+    '''colorlist=['white', 'mediumpurple']
+    newcmp = LinearSegmentedColormap.from_list('testCmap', colors=colorlist, N=256)
 
-    #confusion_matrix = metrics.confusion_matrix(Y_true, Y_pred)
+    confusion_matrix = metrics.confusion_matrix(Y_true, Y_pred)
 
-    #cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = ['Control', 'Parkinson'])
+    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = ['Control', 'Parkinson'])
 
-    #cm_display.plot(cmap = newcmp)
-    #plt.title(key)
-    #plt.savefig('Images/confussion matrix: {}-{}.pdf'.format(key, modality))
+    cm_display.plot(cmap = newcmp)
+    plt.title(key)
+    plt.savefig('Images/confussion matrix: {}-{}.pdf'.format(key, modality))'''
+
+    print(key, 'ok')
+    for idx in range(len(Samples_ids[Y_true==Y_pred])):
+        print(Samples_ids[Y_true==Y_pred][idx], Exercises[Y_true==Y_pred][idx], Repetitions[Y_true==Y_pred][idx])
+    
+    print(key, 'bad')
+    for idx in range(len(Samples_ids[Y_true!=Y_pred])):
+        print(Samples_ids[Y_true!=Y_pred][idx], Exercises[Y_true!=Y_pred][idx], Repetitions[Y_true!=Y_pred][idx])
 
 
     
