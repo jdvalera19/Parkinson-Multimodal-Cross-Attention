@@ -26,7 +26,7 @@ if __name__== "__main__":
     #-------------------------------------------------------------------
     lr          = 0.001
     epoch       = 10
-    batch_size  = 5
+    batch_size  = 2
     exercise    = 'None'
     path_data   = '/home/brayan/AudioVisualData_v2'
     note        = 'VIDEO:LOO_data_v2_best'
