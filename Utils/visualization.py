@@ -118,7 +118,7 @@ def generate_final_visualization(resultAudio, resultVideo, title, key):
     g.grid(0.2)
 
     plt.xticks(rotation=90)
-    plt.savefig('Images/{}.pdf'.format(title))
+    plt.savefig('Images/{}.pdf'.format(title), bbox_inches='tight')
 
 def generate_confusion_matix(results, key, modality, aucs):
 
