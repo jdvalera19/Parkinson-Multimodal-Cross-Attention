@@ -27,6 +27,52 @@ def view_results(data_name):
     print("Precision:{:.4f}, Recall:{:.4f}, F1-score:{:.4f}, Accuracy:{:.4f}, AUC:{:.4f}".format(prf[0][1], prf[1][1], prf[2][1], acc, auc_metric))
     print("==========================================================================================")
 
+def audio_visual_evaluation(resultAudio, resultVideo):
+
+    dataAudio = pd.read_csv(resultAudio)
+    dataVideo = pd.read_csv(resultVideo)
+
+    Y_true    = dataAudio['Y_true'].values
+
+    alpha = 0.1
+    delta = 0.05
+
+    labels = []
+    aucs   = []
+    while alpha <= 1:
+
+        audio_pk_props = dataAudio['PK_props'].values
+        video_pk_props = dataVideo['PK_props'].values
+
+        video_pk_props *= alpha
+        audio_pk_props *= round(1-alpha, 2)
+
+        pk_props        = np.concatenate((audio_pk_props.reshape(len(audio_pk_props), 1), video_pk_props.reshape(len(video_pk_props),1)), axis=1)
+        fusion_pk_props = np.sum(pk_props, axis=1)
+
+        fpr, tpr, thresholds = roc_curve(Y_true, fusion_pk_props, pos_label=1)
+        auc_metric = auc(fpr, tpr)
+
+        print('V:{} ; A:{} ; AUC:{}'.format(alpha, round(1-alpha, 2), round(auc_metric, 2)))
+
+        labels.append('V:{}-A:{}'.format(alpha, round(1-alpha, 2)))
+        aucs.append(auc_metric)
+
+        alpha += delta
+        alpha = round(alpha, 2)
+
+    return {'Alphas': labels, 'AUC': aucs}
+
+def plot_alpha(data_plot, title):
+
+    f, axes = plt.subplots(figsize=(18, 5))
+    g = sns.barplot(data=data_plot, x="Alphas", y="AUC", palette=['limegreen', "mediumpurple", 'gray'], hue='Exercises', axes=axes)
+    g.grid(0.2)
+    plt.xticks(rotation=90)
+    plt.savefig('Images/{}.pdf'.format(title), bbox_inches='tight')
+    
+
+
 def generate_final_visualization(resultAudio, resultVideo, title, key):
 
     dataAudio = pd.read_csv(resultAudio)
