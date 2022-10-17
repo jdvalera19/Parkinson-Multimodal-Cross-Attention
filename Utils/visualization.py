@@ -39,13 +39,13 @@ def audio_visual_evaluation(resultAudio, resultVideo):
 
     labels = []
     aucs   = []
-    while alpha <= 1:
+    while alpha <= 0.9:
 
         audio_pk_props = dataAudio['PK_props'].values
         video_pk_props = dataVideo['PK_props'].values
 
-        video_pk_props *= alpha
-        audio_pk_props *= round(1-alpha, 2)
+        video_pk_props = video_pk_props*alpha
+        audio_pk_props = audio_pk_props*round(1-alpha, 2)
 
         pk_props        = np.concatenate((audio_pk_props.reshape(len(audio_pk_props), 1), video_pk_props.reshape(len(video_pk_props),1)), axis=1)
         fusion_pk_props = np.sum(pk_props, axis=1)
@@ -55,8 +55,8 @@ def audio_visual_evaluation(resultAudio, resultVideo):
 
         print('V:{} ; A:{} ; AUC:{}'.format(alpha, round(1-alpha, 2), round(auc_metric, 2)))
 
-        labels.append('V:{}-A:{}'.format(alpha, round(1-alpha, 2)))
-        aucs.append(auc_metric)
+        labels.append('Video alpha:{}\n Audio (1-alpha):{}'.format(alpha, round(1-alpha, 2)))
+        aucs.append(round(auc_metric, 3))
 
         alpha += delta
         alpha = round(alpha, 2)
@@ -67,8 +67,15 @@ def plot_alpha(data_plot, title):
 
     f, axes = plt.subplots(figsize=(18, 5))
     g = sns.barplot(data=data_plot, x="Alphas", y="AUC", palette=['limegreen', "mediumpurple", 'gray'], hue='Exercises', axes=axes)
-    g.grid(0.2)
-    plt.xticks(rotation=90)
+    g.set_ylim(0, 1)
+    for container in g.containers:
+        g.bar_label(container,rotation=80)
+
+    plt.axvline(x=7.5, color="red", linestyle="--")
+    plt.axvline(x=8.5, color="red", linestyle="--")
+    plt.axvline(x=9.5, color="red", linestyle="--")
+    plt.xticks(rotation=70)
+    plt.legend(loc='lower left')
     plt.savefig('Images/{}.pdf'.format(title), bbox_inches='tight')
     
 
