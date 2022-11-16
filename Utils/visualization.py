@@ -55,7 +55,7 @@ def audio_visual_evaluation(resultAudio, resultVideo):
 
         print('V:{} ; A:{} ; AUC:{}'.format(alpha, round(1-alpha, 2), round(auc_metric, 2)))
 
-        labels.append('Video alpha:{}\n Audio (1-alpha):{}'.format(alpha, round(1-alpha, 2)))
+        labels.append(alpha)
         aucs.append(round(auc_metric, 3))
 
         alpha += delta

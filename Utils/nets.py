@@ -32,11 +32,11 @@ def load_I3D(pre_train = False):
 
     return base_model
 
-def load_resnet50(pre_train = True):
+def load_resnet50(pre_train = True, input_channels=1):
 
     base_model  = torch.hub.load('pytorch/vision:v0.10.0', 'resnet50', pretrained=pre_train)
     
-    base_model.conv1 = torch.nn.Conv2d(2, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+    base_model.conv1 = torch.nn.Conv2d(input_channels, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
     base_model.fc    = torch.nn.Linear(2048, 2)
 
     return base_model

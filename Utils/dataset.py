@@ -1,5 +1,6 @@
 import os
 import torch
+import random
 import torchaudio
 
 import numpy as np
@@ -22,6 +23,17 @@ class To_Tensor_video(object):
         image = np.array(sample['video'])
 
         image = image.transpose((3,0,1,2))
+
+        sample['video'] = torch.from_numpy(image)
+
+        return sample
+
+class To_Tensor_video_2D(object):
+
+    def __call__(self, sample):
+        image = np.array(sample['video'])
+
+        image = image.transpose((2,0,1))
 
         sample['video'] = torch.from_numpy(image)
 
@@ -227,6 +239,89 @@ class VisualDataset(Dataset):
                 loaded_frames.append(frame)
 
         return loaded_frames
+
+    def __len__(self):
+        return len(self.videos)
+
+    def __getitem__(self, idx):
+
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        
+        sample = {'video'        : self.X[idx],
+                  'label'        : self.Y[idx],
+                  "samples_type" : self.samples_type[idx],
+                  "patient_id"   : self.patients[idx],
+                  "repetition"   : self.repetition[idx],
+                  "exercise"     : self.exercises[idx]}
+        
+        if self.transform:
+            sample = self.transform(sample)
+ 
+        return sample
+
+#----------------------------------------------------------------------
+# Custom Dataset class to generate the tensors to train a model 
+#----------------------------------------------------------------------
+# Parameters: 
+#-----------------------------------------------------------------------
+class VisualDataset2D(Dataset):
+    def __init__(self, 
+                 names_videos,
+                 duration,
+                 transform):
+        
+        self.videos                       = names_videos
+        self.transform                    = transform
+        self.duration                     = duration//2
+        self.X, self.Y                    = [], []
+        self.samples_type, self.exercises = [], []
+        self.patients, self.repetition    = [], []
+        
+        stream = tqdm(total=len(self.videos), desc = 'loading data')
+
+        with stream as pbar:
+            for idx, video in enumerate(self.videos):
+                frames     = os.listdir(video)
+                frames.sort()
+
+                type_sample = video.split('/')[-1][0]
+                self.samples_type.append(type_sample)
+
+                label, exercise, patient, repetition = self.__get_sample_data__(video.split('/')[-1])
+                loaded_frame = self.__load_frame__(frames, video)
+                
+                self.X.append(loaded_frame)
+                self.Y.append(label)
+                self.patients.append(patient)
+                self.exercises.append(exercise)
+                self.repetition.append(repetition)
+
+                pbar.update(1)
+        
+    def __get_sample_data__(self, name):
+
+        type_sample  = name.split('-')[0][0]
+        patient      = name.split('-')[0]
+        repetition   = name.split('-')[1]
+        exercise     = name.split('-')[-1][:-4]
+
+        if type_sample == "P":
+            label = 1
+
+        else:
+            label = 0
+
+        return label, exercise, patient, repetition
+    
+    def __load_frame__(self, frames, video_name):
+        
+        random_frame = random.choice(frames)
+        frame = io.imread(video_name + '/' + random_frame, as_gray=True)
+        frame = resize(frame, (224, 224), anti_aliasing=True)
+        frame = np.expand_dims(frame, 2)
+
+        return frame
 
     def __len__(self):
         return len(self.videos)
