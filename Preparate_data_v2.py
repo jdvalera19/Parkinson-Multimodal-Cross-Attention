@@ -9,7 +9,7 @@ import numpy as np
 from mtcnn           import MTCNN
 from PIL             import Image
 
-path_data = '/data/Datasets/Parkinson/Facial_Expression_Dataset/AudioVisualDataset_v6'
+path_data = '/data/Datasets/Parkinson/Facial_Expression_Dataset/AudioVisualDataset_v5'
 classes   = os.listdir(path_data)
 
 print('Founded classes are:', classes)
