@@ -97,34 +97,47 @@ def generate_final_visualization(resultAudio, resultVideo, title, key):
 
     class_ = []
     for idx, ids in enumerate(sample_ids):
-            class_.append(ids[0])
+        if ids[0] == 'C':
+            class_.append('Control')
+        else:
+            class_.append('Parkinson')
 
     data = pd.DataFrame({'Patient IDS'          : sample_ids,
                          'Exercises'            : exercises,
                          'Repetition'           : repetitions,
-                         'class'                : class_,
+                         'Samples'                : class_,
                          'Audio probabilities'  : audio_pk_props,
                          'Video probabilities'  : video_pk_props,
                          'Fusion probabilities' : fusion_pk_props})
 
-    f, axes = plt.subplots(3, 1, sharex=True, figsize=(15, 10))
+    f, axes = plt.subplots(3, 1, sharex=True, figsize=(20, 8))
 
     sns.stripplot(x = key, y = 'Audio probabilities', data=data, marker="o", alpha=0.3, color="blue", ax=axes[0])
-    g = sns.boxplot(y = 'Audio probabilities', x = key, data = data, hue='class', palette=['limegreen', "mediumpurple"], dodge=False, flierprops={"marker": "x"}, ax=axes[0])
+    g = sns.boxplot(y = 'Audio probabilities', x = key, data = data, hue='Samples', palette=['limegreen', "mediumpurple"], dodge=False, flierprops={"marker": "x"}, ax=axes[0])
     g.axhline(0.5, color='r')
-    g.grid(0.2)
+    g.set_xlabel('')
+    g.set_ylabel('')
+    g.set_title('a) Audio samples')
+    g.get_legend().remove()
+    g.grid(0.1)
 
     sns.stripplot(x = key, y = 'Video probabilities', data=data, marker="o", alpha=0.3, color="blue", ax=axes[1])
-    g = sns.boxplot(y = 'Video probabilities', x = key, data = data, hue='class', palette=['limegreen', "mediumpurple"], dodge=False, flierprops={"marker": "x"}, ax=axes[1])
+    g = sns.boxplot(y = 'Video probabilities', x = key, data = data, hue='Samples', palette=['limegreen', "mediumpurple"], dodge=False, flierprops={"marker": "x"}, ax=axes[1])
     g.axhline(0.5, color='r')
-    g.grid(0.2)
+    g.set_xlabel('')
+    g.set_ylabel('Probabilities')
+    g.set_title('b) Video samples')
+    g.grid(0.1)
 
     sns.stripplot(x = key, y = 'Fusion probabilities', data=data, marker="o", alpha=0.3, color="blue", ax=axes[2])
-    g = sns.boxplot(y = 'Fusion probabilities', x = key, data = data, hue='class', palette=['limegreen', "mediumpurple"], dodge=False,flierprops={"marker": "x"}, ax=axes[2])
+    g = sns.boxplot(y = 'Fusion probabilities', x = key, data = data, hue='Samples', palette=['limegreen', "mediumpurple"], dodge=False,flierprops={"marker": "x"}, ax=axes[2])
     g.axhline(0.5, color='r')
-    g.grid(0.2)
+    g.set_ylabel('')
+    g.set_title('c) Fusion samples')
+    g.get_legend().remove()
+    g.grid(0.1)
 
-    plt.xticks(rotation=90)
+    plt.xticks(rotation=0)
     plt.savefig('Images/{}.pdf'.format(title), bbox_inches='tight')
 
 def generate_confusion_matix(results, key, modality, aucs):
