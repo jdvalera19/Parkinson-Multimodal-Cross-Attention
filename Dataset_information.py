@@ -62,7 +62,7 @@ def plot_data(dataFrame, label):
     plt.pie(data, colors = colors, autopct= lambda pct: func(pct, data), explode = myexplode, startangle = 90)
     plt.title(label)
     plt.legend(['Vowels', 'Phonemes', 'Words'])
-    plt.savefig("Images/{}_exercises_distribution.pdf".format(label), bbox_inches='tight', pad_inches = 0)
+    plt.savefig("Images/{}_exercises_distribution.png".format(label), bbox_inches='tight', pad_inches = 0, transparent=True)
     plt.close()
 
 if __name__== "__main__":
