@@ -65,7 +65,7 @@ def plot_data(dataFrame, label):
     myexplode = [0, 0, 0.2]
 
     plt.pie(data, colors = colors, autopct= lambda pct: func(pct, data), explode = myexplode, startangle = 90)
-    plt.title(label)
+    plt.title(label, fontsize=17)
     plt.legend(['Vowels', 'Phonemes', 'Words'])
     plt.savefig("{}_exercises_distribution.png".format(label), bbox_inches='tight', pad_inches = 0, transparent=True)
     plt.close()
@@ -76,4 +76,4 @@ if __name__== "__main__":
     dataset_dataFrame = get_dataset_information(data_path)
 
     plot_data(dataset_dataFrame, 'Control')
-    #plot_data(dataset_dataFrame, 'Parkinson')
+    plot_data(dataset_dataFrame, 'Parkinson')
