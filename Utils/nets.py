@@ -7,6 +7,8 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy             as np
 
+import torchvision.models as models
+
 from tqdm            import tqdm
 from Utils.i3dpt     import I3D, Unit3Dpy
 from sklearn.metrics import accuracy_score
@@ -38,6 +40,19 @@ def load_resnet50(pre_train = True, input_channels=1):
     
     base_model.conv1 = torch.nn.Conv2d(input_channels, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
     base_model.fc    = torch.nn.Linear(2048, 2)
+
+    return base_model
+
+def load_vgg16(pre_train = True, input_channels=1):
+
+    base_model  = models.vgg16(pretrained=pre_train)
+    
+    base_model.features[0] = torch.nn.Conv2d(input_channels, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+    
+    num_features = base_model.classifier[-1].in_features
+    features = list(base_model.classifier.children())[:-1] # Elimina la última capa
+    features.extend([torch.nn.Linear(num_features, 2)])
+    base_model.classifier = torch.nn.Sequential(*features)
 
     return base_model
 

@@ -1,7 +1,7 @@
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "4"
 
 import warnings
 
@@ -24,12 +24,12 @@ if __name__== "__main__":
     #-------------------------------------------------------------------
     # Define the model parameters
     #-------------------------------------------------------------------
-    lr          = 0.001
-    epoch       = 10
-    batch_size  = 2
-    exercise    = 'None'
-    path_data   = '/home/brayan/AudioVisualData_v2'
-    note        = 'VIDEO:LOO_data_v2_best'
+    lr          = 0.0001
+    epoch       = 25
+    batch_size  = 1
+    exercise    = 'Vowels'
+    path_data   = '/home/brayan/AudioVisualData_v7'
+    note        = 'VIDEO:LOO_data_v2_balanced_without_weights'
     s_duration  = False
 
     #-------------------------------------------------------------------
@@ -92,7 +92,7 @@ if __name__== "__main__":
         #----------------------------------------------------------------
         # Load network2
         #----------------------------------------------------------------
-        model = load_I3D(pre_train=True)
+        model = load_I3D(pre_train=False)
         model.to(device)
 
         #----------------------------------------------------------------

@@ -80,10 +80,11 @@ def plot_alpha(data_plot, title):
     
 
 
-def generate_final_visualization(resultAudio, resultVideo, title, key):
+def generate_final_visualization(resultAudio, resultVideo, title, key, alpha):
 
     dataAudio = pd.read_csv(resultAudio)
     dataVideo = pd.read_csv(resultVideo)
+    Y_true    = dataAudio['Y_true'].values
 
     sample_ids  = dataAudio['Sample_ids'].values
     exercises   = dataAudio['Exercise_g'].values
@@ -93,7 +94,16 @@ def generate_final_visualization(resultAudio, resultVideo, title, key):
     video_pk_props = dataVideo['PK_props'].values
 
     pk_props = np.concatenate((dataAudio['PK_props'].values.reshape(len(dataAudio['PK_props'].values), 1), dataVideo['PK_props'].values.reshape(len(dataVideo['PK_props']),1)), axis=1)
-    fusion_pk_props = np.mean(pk_props, axis=1) 
+    pk_props[:, 0] = pk_props[:, 0]*alpha
+    pk_props[:, 1] = pk_props[:, 1]*(1-alpha) 
+    fusion_pk_props = np.sum(pk_props, axis=1) 
+
+    fpr, tpr, thresholds = roc_curve(Y_true, fusion_pk_props, pos_label=1) 
+    auc_metric = auc(fpr, tpr)
+
+    print('---------------------------------------')
+    print('AUC:{}'.format(round(auc_metric,2)))
+    print('---------------------------------------')
 
     class_ = []
     for idx, ids in enumerate(sample_ids):

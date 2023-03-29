@@ -26,10 +26,10 @@ if __name__== "__main__":
     #-------------------------------------------------------------------
     lr          = 0.000001
     epoch       = 10
-    batch_size  = 20
+    batch_size  = 2
     exercise    = 'words'
-    path_data   = '/home/brayan/AudioVisualData_v2'
-    note        = '2D baseline'
+    path_data   = '/home/brayan/AudioVisualData_v7'
+    note        = '2D baseline v2'
 
     #-------------------------------------------------------------------
     # Select the GPU to improve the evaluation stage

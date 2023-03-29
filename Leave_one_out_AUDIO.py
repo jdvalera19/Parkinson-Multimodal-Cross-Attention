@@ -1,7 +1,7 @@
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 import torch
 
@@ -19,12 +19,12 @@ if __name__== "__main__":
     #----------------------------------------------------------------
     # Define the model parameters
     #----------------------------------------------------------------
-    lr                = 0.00007
-    epoch             = 7
-    batch_size        = 8
+    lr                = 0.00001
+    epoch             = 100
+    batch_size        = 4
     exercise          = 'Vowels'
-    path_data         = '/home/brayan/AudioVisualData_v2'
-    note              = 'AUDIO:LOO_data_v2'
+    path_data         = '/home/brayan/AudioVisualData_v7'
+    note              = 'AUDIO:LOO_data_v2_balanced_vgg16_weights'
     s_duration        = False
 
     #-------------------------------------------------------------------
@@ -84,7 +84,7 @@ if __name__== "__main__":
         #----------------------------------------------------------------
         # Load network2
         #----------------------------------------------------------------
-        model =load_resnet50(pre_train = True)
+        model = load_vgg16(pre_train = True, input_channels=2)
         model.to(device)
 
         #----------------------------------------------------------------

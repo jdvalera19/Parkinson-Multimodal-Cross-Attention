@@ -2,10 +2,11 @@ import os
 import torch
 import random
 import torchaudio
+import librosa
 
 import numpy as np
 
-from skimage           import io
+from skimage           import io, exposure
 from skimage.transform import resize
 from torch.utils.data  import Dataset
 from scipy             import signal
@@ -235,6 +236,7 @@ class VisualDataset(Dataset):
         for frame_index, frame_n in enumerate(frames[middle-self.duration:middle] + frames[middle:middle+self.duration]):
                 frame = io.imread(video_name + '/' + frame_n, as_gray=True)
                 frame = resize(frame, (224, 224), anti_aliasing=True)
+                frame = exposure.equalize_adapthist(frame, clip_limit=0.03)
                 frame = np.expand_dims(frame, 2)
                 loaded_frames.append(frame)
 
@@ -364,6 +366,7 @@ class AudioDataset(Dataset):
         for audio in self.audios:
             sig, sr = torchaudio.load(audio)
 
+            sig         = self.remove_noise(sig)
             sig         = self.crop_signal(sig, self.duration)
             process_sig = self.spectro_gram((sig, sr))
 
@@ -394,6 +397,18 @@ class AudioDataset(Dataset):
             label = 0
 
         return label, exercise, patient, repetition
+    
+    def remove_noise(self, y):
+        # Cargar archivo de audio
+
+        # Aplicar un filtro de ruido utilizando una ventana de Hamming
+        #y = y.astype(np.float32)
+        y_filt = signal.filtfilt(librosa.filters.get_window("hamming", 10), [1], y)
+
+        # Eliminar silencios del audio
+        y_filt = librosa.effects.trim(y_filt, top_db=30, frame_length=1024, hop_length=256)[0]
+        
+        return y_filt
     
     def spectro_gram(self, aud, n_mels=64, n_fft=1024, hop_len=None):
         sig, sr = aud

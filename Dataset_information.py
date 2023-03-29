@@ -66,7 +66,7 @@ def plot_data(dataFrame, label):
     plt.close()
 
 if __name__== "__main__":
-    data_path = '/data/Datasets/Parkinson/Facial_Expression_Dataset/AudioVisualDataset_v5/'
+    data_path = '/data/Datasets/Parkinson/Facial_Expression_Dataset/AudioVisualDataset_v7/'
 
     dataset_dataFrame = get_dataset_information(data_path)
 

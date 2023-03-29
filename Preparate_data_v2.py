@@ -9,12 +9,12 @@ import numpy as np
 from mtcnn           import MTCNN
 from PIL             import Image
 
-path_data = '/data/Datasets/Parkinson/Facial_Expression_Dataset/AudioVisualDataset_v5'
+path_data = '/data/Datasets/Parkinson/Facial_Expression_Dataset/AudioVisualDataset_v7'
 classes   = os.listdir(path_data)
 
 print('Founded classes are:', classes)
 
-folder_to_save_data = '/home/brayan/AudioVisualData_v2'
+folder_to_save_data = '/home/brayan/AudioVisualData_v7'
 get_face            = True
 detector            = MTCNN()
 
