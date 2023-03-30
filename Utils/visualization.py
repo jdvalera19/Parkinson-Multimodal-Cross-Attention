@@ -40,6 +40,7 @@ def audio_visual_evaluation(resultAudio, resultVideo):
     labels = []
     aucs   = []
     while alpha <= 0.9:
+        fusion_predictions = []
 
         audio_pk_props = dataAudio['PK_props'].values
         video_pk_props = dataVideo['PK_props'].values
@@ -50,10 +51,21 @@ def audio_visual_evaluation(resultAudio, resultVideo):
         pk_props        = np.concatenate((audio_pk_props.reshape(len(audio_pk_props), 1), video_pk_props.reshape(len(video_pk_props),1)), axis=1)
         fusion_pk_props = np.sum(pk_props, axis=1)
 
+        for idx in range(len(fusion_pk_props)):
+            if fusion_pk_props[idx] <= 0.5:
+                fusion_predictions.append(0)
+
+            else:
+                fusion_predictions.append(1)
+
+        acc = accuracy_score(Y_true, fusion_predictions)
+        prf = precision_recall_fscore_support(Y_true, fusion_predictions, zero_division=0.0, pos_label=1)
         fpr, tpr, thresholds = roc_curve(Y_true, fusion_pk_props, pos_label=1)
         auc_metric = auc(fpr, tpr)
 
-        print('V:{} ; A:{} ; AUC:{}'.format(alpha, round(1-alpha, 2), round(auc_metric, 2)))
+        print("==========================================================================================")
+        print("V:{} , A:{}, Precision:{:.4f}, Recall:{:.4f}, F1-score:{:.4f}, Accuracy:{:.4f}, AUC:{:.4f}".format(alpha, round(1-alpha, 2), prf[0][1], prf[1][1], prf[2][1], acc, auc_metric))
+        print("==========================================================================================")
 
         labels.append(alpha)
         aucs.append(round(auc_metric, 3))
