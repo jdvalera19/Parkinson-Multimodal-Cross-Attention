@@ -102,6 +102,101 @@ def identify_max_AVduration(data_audio, data_video):
     return max_duration, max_frames
 
 #----------------------------------------------------------------------
+# Function to load the video data for all patients 
+#----------------------------------------------------------------------
+# Parameters: 
+# Return: 
+#-----------------------------------------------------------------------
+def __get_sample_data__(name):
+
+        type_sample  = name.split('-')[0][0]
+        patient      = name.split('-')[0]
+        repetition   = name.split('-')[1]
+        exercise     = name.split('-')[-1][:-4]
+
+        if type_sample == "P":
+            label = 1
+
+        else:
+            label = 0
+
+        return label, exercise, patient, repetition
+
+def __load_frames__(frames, video_name, duration):
+        loaded_frames = []
+
+        while len(frames) < duration:
+            rand_index = np.random.randint(len(frames))
+            rand_frame = frames[rand_index]
+            frames.insert(rand_index, rand_frame)
+        
+        while len(frames) > duration:
+            rand_index = np.random.randint(len(frames))
+            frames.pop(rand_index)
+
+        for frame_index, frame_n in enumerate(frames):
+            if frame_index%3 == 0:
+                frame = io.imread(video_name + '/' + frame_n, as_gray=True)
+                frame = resize(frame, (224, 224), anti_aliasing=True)
+                frame = np.expand_dims(frame, 2)
+                loaded_frames.append(frame)
+
+        return loaded_frames
+
+def load_video_data(path_base = None, exercise_s = None, duration = None):
+    videos        = {}
+    labels        = {}
+    exercises_s   = {}
+    repetitions_s = {}
+    samples_type  = {}
+
+    classes = os.listdir(path_base)
+
+    for class_ in classes:
+        path_class = path_base + '/{}'.format(class_)
+        patients = os.listdir(path_class)
+
+        for patient_idx, patient in enumerate(patients):
+            path_patient     = path_class + '/{}'.format(patient)
+            exercises        = os.listdir(path_patient)
+
+            for exercise in exercises:
+                if exercise_s == exercise:
+                    path_exercise         = path_patient + '/{}'.format(exercise)
+                    path_modality_videos = path_exercise + '/{}'.format('frames')
+                    videos_name = os.listdir(path_modality_videos)
+                    patient_videos_path = [path_modality_videos + '/' + name_string for name_string in videos_name]
+
+                    samples_type[patient]   = []
+                    videos[patient]         = []
+                    labels[patient]         = []
+                    exercises_s[patient]    = []
+                    repetitions_s[patient]   = []
+
+                    for idx, video in enumerate(patient_videos_path):
+                        frames     = os.listdir(video)
+                        frames.sort()
+
+                        type_sample = video.split('/')[-1][0]
+
+                        label, exercise, patient, repetition = __get_sample_data__(video.split('/')[-1])
+                        
+                        loaded_frames = __load_frames__(frames, video, duration)
+                        
+                        videos[patient].append(loaded_frames)
+                        labels[patient].append(label)
+                        samples_type[patient].append(type_sample)
+                        exercises_s[patient].append(exercise)
+                        repetitions_s[patient].append(repetition)
+
+                        print(np.shape(loaded_frames), label, type_sample, exercise, repetition)
+
+    return videos, labels, samples_type, exercises_s, repetitions_s
+
+
+
+
+#----------------------------------------------------------------------
 # Divide the avanible data into subset to make training and validation 
 # takin into account leave one out cross validation
 #----------------------------------------------------------------------
@@ -109,7 +204,6 @@ def identify_max_AVduration(data_audio, data_video):
 # Return: 
 #-----------------------------------------------------------------------
 def generate_train_and_test_sets(path_base = None, patient_val = None, exercise_s = None, duration = None):
-
     videos_T = []
     audios_T = []
     
@@ -127,7 +221,7 @@ def generate_train_and_test_sets(path_base = None, patient_val = None, exercise_
             exercises        = os.listdir(path_patient)
 
             for exercise in exercises:
-                #if exercise_s == exercise:
+                if exercise_s == exercise:
                     path_exercise         = path_patient + '/{}'.format(exercise)
 
                     path_modality_frames = path_exercise + '/{}'.format('frames')
@@ -267,6 +361,53 @@ class VisualDataset(Dataset):
 #----------------------------------------------------------------------
 # Parameters: 
 #-----------------------------------------------------------------------
+class VisualDataset_v2(Dataset):
+    def __init__(self, 
+                 videos,
+                 labels,
+                 samples_type, 
+                 exercises_s, 
+                 repetitions_s,
+                 transform):
+        
+        self.transform                    = transform
+        self.X, self.Y                    = [], []
+        self.samples_type, self.exercises = [], []
+        self.patients, self.repetition    = [], []
+
+        for patient in videos.keys():
+            self.X            += videos[patient]
+            self.Y            += labels[patient]
+            self.patients     += [patient for idx in range(len(labels[patient]))]
+            self.exercises    += exercises_s[patient]
+            self.repetition   += repetitions_s[patient]
+            self.samples_type += samples_type[patient]
+
+    def __len__(self):
+        return len(self.X)
+
+    def __getitem__(self, idx):
+
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        
+        sample = {'video'        : self.X[idx],
+                  'label'        : self.Y[idx],
+                  "samples_type" : self.samples_type[idx],
+                  "patient_id"   : self.patients[idx],
+                  "repetition"   : self.repetition[idx],
+                  "exercise"     : self.exercises[idx]}
+        
+        if self.transform:
+            sample = self.transform(sample)
+ 
+        return sample
+
+#----------------------------------------------------------------------
+# Custom Dataset class to generate the tensors to train a model 
+#----------------------------------------------------------------------
+# Parameters: 
+#-----------------------------------------------------------------------
 class VisualDataset2D(Dataset):
     def __init__(self, 
                  names_videos,
@@ -375,6 +516,7 @@ class AudioDataset(Dataset):
 
             label, exercise, patient, repetition = self.__get_sample_data__(audio.split('/')[-1])
             
+            #print(np.shape(process_sig))
             self.X.append(process_sig)
             self.Y.append(label)
             self.patients.append(patient)

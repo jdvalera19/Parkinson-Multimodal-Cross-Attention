@@ -1,7 +1,7 @@
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "4"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 import warnings
 
@@ -25,11 +25,11 @@ if __name__== "__main__":
     # Define the model parameters
     #-------------------------------------------------------------------
     lr          = 0.0001
-    epoch       = 25
+    epoch       = 50
     batch_size  = 1
-    exercise    = 'Vowels'
+    exercise    = 'Words'
     path_data   = '/home/brayan/AudioVisualData_v7'
-    note        = 'VIDEO:LOO_data_v2_balanced_without_weights'
+    note        = 'VIDEO:weights'
     s_duration  = False
 
     #-------------------------------------------------------------------
@@ -92,7 +92,7 @@ if __name__== "__main__":
         #----------------------------------------------------------------
         # Load network2
         #----------------------------------------------------------------
-        model = load_I3D(pre_train=False)
+        model = load_I3D(pre_train=True)
         model.to(device)
 
         #----------------------------------------------------------------
@@ -113,7 +113,7 @@ if __name__== "__main__":
         exercises_g     += exercises
         repetitions_g   += repetitions
         
-    dataframe_of_results_name = 'Results/Note:{}-Lr:{}-Epoch:{}-Exercise:{}-duration_size:{}.csv'.format(note, lr, epoch, exercise, s_duration)
+    dataframe_of_results_name = 'Results_v2/Note:{}-Lr:{}-Epoch:{}-Exercise:{}-duration_size:{}.csv'.format(note, lr, epoch, exercise, s_duration)
 
     data_frame_of_results = pd.DataFrame({'Y_true'       : Y_true_g,
                                           'Y_pred'       : Y_pred_g,

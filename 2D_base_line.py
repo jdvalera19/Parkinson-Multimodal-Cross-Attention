@@ -1,7 +1,7 @@
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "4"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 import warnings
 
@@ -24,12 +24,12 @@ if __name__== "__main__":
     #-------------------------------------------------------------------
     # Define the model parameters
     #-------------------------------------------------------------------
-    lr          = 0.000001
-    epoch       = 10
+    lr          = 0.00001
+    epoch       = 20
     batch_size  = 2
-    exercise    = 'words'
-    path_data   = '/home/brayan/AudioVisualData_v7'
-    note        = '2D baseline v2'
+    exercise    = 'Vowels'
+    path_data   = '/data/franklin_pupils/Jose/Dataset/AudioVisualData_v7'
+    note        = 'VIDEO:weights' #change the word VIDEO
 
     #-------------------------------------------------------------------
     # Select the GPU to improve the evaluation stage
@@ -60,7 +60,7 @@ if __name__== "__main__":
     exercises_g    = []
     repetitions_g  = []
 
-    for patient in patients:
+    for patient in patients[0:3]:
 
         _, _, videos_Train, videos_Test, _, duration_video = generate_train_and_test_sets(path_base   = path_data, 
                                                                                           patient_val = [patient],
@@ -96,7 +96,7 @@ if __name__== "__main__":
         # Train and save the model
         #----------------------------------------------------------------
         dataloaders = {"train":train_loader, "test":test_loader}
-        model, Y_true, Y_pred, PK_props, C_props, sample_ids, exercises, repetitions = train_model_CE_AUDIO(model       = model,
+        model, Y_true, Y_pred, PK_props, C_props, sample_ids, exercises, repetitions = train_model_CE(model       = model,
                                                                                                             num_epochs  = epoch,
                                                                                                             dataloaders = dataloaders,
                                                                                                             modality    = 'video',
@@ -110,7 +110,7 @@ if __name__== "__main__":
         exercises_g     += exercises
         repetitions_g   += repetitions
     
-    dataframe_of_results_name = 'Results/Note:{}-Lr:{}-Epoch:{}-Exercise:{}.csv'.format(note, lr, epoch, exercise)
+    dataframe_of_results_name = 'Results_v2/Note:{}-Lr:{}-Epoch:{}-Exercise:{}.csv'.format(note, lr, epoch, exercise)
 
     data_frame_of_results = pd.DataFrame({'Y_true'       : Y_true_g,
                                           'Y_pred'       : Y_pred_g,

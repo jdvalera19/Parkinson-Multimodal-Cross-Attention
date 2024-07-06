@@ -1,7 +1,7 @@
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 import torch
 
@@ -20,11 +20,11 @@ if __name__== "__main__":
     # Define the model parameters
     #----------------------------------------------------------------
     lr                = 0.00001
-    epoch             = 100
+    epoch             = 50
     batch_size        = 4
-    exercise          = 'Vowels'
-    path_data         = '/home/brayan/AudioVisualData_v7'
-    note              = 'AUDIO:LOO_data_v2_balanced_vgg16_weights'
+    exercise          = 'Words'
+    path_data         = '/data/franklin_pupils/Jose/Dataset/AudioVisualData_v7'
+    note              = 'AUDIO:resnet50_weights'
     s_duration        = False
 
     #-------------------------------------------------------------------
@@ -58,9 +58,9 @@ if __name__== "__main__":
 
     for patient in patients:
         audios_Train, audios_Test, _, _, duration_audio, _ = generate_train_and_test_sets(path_base   = path_data, 
-                                                                                              patient_val = [patient],
-                                                                                              exercise_s  = exercise,
-                                                                                              duration    = s_duration)
+                                                                                          patient_val = [patient],
+                                                                                          exercise_s  = exercise,
+                                                                                          duration    = s_duration)
         print("==========================================================================================")
         print("Validating Patient {}: Duration Frames:{}".format(patient, duration_audio))
 
@@ -84,6 +84,7 @@ if __name__== "__main__":
         #----------------------------------------------------------------
         # Load network2
         #----------------------------------------------------------------
+        #model = load_resnet50(pre_train = True, input_channels=2)
         model = load_vgg16(pre_train = True, input_channels=2)
         model.to(device)
 
@@ -105,7 +106,7 @@ if __name__== "__main__":
         exercises_g     += exercises
         repetitions_g   += repetitions
     
-    dataframe_of_results_name = 'Results/Note:{}-Lr:{}-Epoch:{}-Exercise:{}-duration_size:{}.csv'.format(note, lr, epoch, exercise, s_duration)
+    dataframe_of_results_name = 'Results_v2/Note:{}-Lr:{}-Epoch:{}-Exercise:{}-duration_size:{}.csv'.format(note, lr, epoch, exercise, s_duration)
 
     data_frame_of_results = pd.DataFrame({'Y_true'       : Y_true_g,
                                           'Y_pred'       : Y_pred_g,
