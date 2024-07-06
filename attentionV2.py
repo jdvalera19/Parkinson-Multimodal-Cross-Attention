@@ -185,7 +185,7 @@ if __name__== "__main__":
         #----------------------------------------------------------------
         #video_model = CNNModel2D()
         video_model = CNNModel3D()
-        #testing for gitttt
+        #testing for gitttt agaiaaan
         video_model.to(device)
         #print(video_model.conv_layer2)
 
