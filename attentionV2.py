@@ -46,7 +46,7 @@ if __name__== "__main__":
     batch_size  = 5
     exercise    = 'Words'
     path_data   = '/data/franklin_pupils/Jose/Dataset/AudioVisualData_v7'
-    note        = '2_atenciónEmbebidos_VIDEO3D-1x1_RESIZE_AUDIO_1head:weights' 
+    note        = '2_atenciónEmbebidos_VIDEO3D-1x1_RESIZE_AUDIO:weights' 
     s_duration  = False
 
     #-------------------------------------------------------------------
@@ -185,7 +185,6 @@ if __name__== "__main__":
         #----------------------------------------------------------------
         #video_model = CNNModel2D()
         video_model = CNNModel3D()
-        #testing for gitttt agaiaaan
         video_model.to(device)
         #print(video_model.conv_layer2)
 
@@ -209,15 +208,16 @@ if __name__== "__main__":
                                                        modality    = 'video',
                                                        lr          = lr)  
         """
-        Y_true, Y_pred, PK_props, C_props, sample_ids, exercises, repetitions, = train_model_CE_AUDIO_VIDEO_get_layer(audio_model       = audio_model,
-                                                                         video_model       = video_model,  
-                                                       num_epochs  = epoch,
-                                                       audio_dataloaders = audio_dataloaders,
-                                                       video_dataloaders = video_dataloaders,
-                                                       audio_modality   =  'audio',
-                                                       video_modality    = 'video',
-                                                       lr          = lr,
-                                                       device = device) 
+        Y_true, Y_pred, PK_props, C_props, sample_ids, exercises, repetitions, = train_model_CE_AUDIO_VIDEO_get_layer(
+                                                        audio_model       = audio_model,
+                                                        video_model       = video_model,  
+                                                        num_epochs  = epoch,
+                                                        audio_dataloaders = audio_dataloaders,
+                                                        video_dataloaders = video_dataloaders,
+                                                        audio_modality   =  'audio',
+                                                        video_modality    = 'video',
+                                                        lr          = lr,
+                                                        device = device) 
 
         Y_true_g        += Y_true
         Y_pred_g        += Y_pred

@@ -79,7 +79,7 @@ class CustomVGG16(nn.Module): #para obtener embebido
         super(CustomVGG16, self).__init__()
         self.base_model = load_vgg16(input_channels=input_channels)
         self.base_model.classifier = nn.Sequential(
-            nn.Linear(24576, 4096),  # Ajusta este valor según la salida de 'features.view'
+            nn.Linear(8192, 4096),  # Ajusta este valor según la salida de 'features.view'
             nn.ReLU(True),
             nn.Dropout(),
             nn.Linear(4096, 4096),
@@ -284,9 +284,9 @@ def train_model_CE_AUDIO_get_layer(model, num_epochs=3, dataloaders=None, modali
 
 def train_model_CE_AUDIO_VIDEO_get_layer(audio_model, video_model, num_epochs=3, audio_dataloaders=None, video_dataloaders=None, audio_modality=None, video_modality=None, lr = 0.00001, device=None):
     criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(audio_model.parameters(), lr=lr)
-    optimizer = torch.optim.Adam(video_model.parameters(), lr=lr)
-    torch.cuda.empty_cache()
+    optimizer_audio = torch.optim.Adam(audio_model.parameters(), lr=lr)
+    optimizer_video = torch.optim.Adam(video_model.parameters(), lr=lr)
+    #torch.cuda.empty_cache() PROBAR SIN ESTO
 
     for epoch in range(num_epochs):
         for phase in audio_dataloaders.keys():
@@ -354,7 +354,7 @@ def train_model_CE_AUDIO_VIDEO_get_layer(audio_model, video_model, num_epochs=3,
                     #query_dim = features_audio.size(1)
                     query_dim = embedding_audio.size(1)
                     #context_dim = features_video.size(1)
-                    filters_head = 64 #1 cabeza acá?
+                    filters_head = 1 #1 cabeza acá?
                     cross_model = Embedding_RFBMultiHAttnNetwork_V4(query_dim=query_dim, context_dim=context_dim,
                                 filters_head=filters_head)
                     
@@ -364,9 +364,11 @@ def train_model_CE_AUDIO_VIDEO_get_layer(audio_model, video_model, num_epochs=3,
                     loss        = criterion(outputs, labels)
 
                     if phase == 'train':
-                        optimizer.zero_grad()
+                        optimizer_audio.zero_grad()
+                        optimizer_video.zero_grad()
                         loss.backward()
-                        optimizer.step()
+                        optimizer_audio.step()
+                        optimizer_video.step()
                         
                     running_loss += loss.item()
                     logits       = torch.nn.Softmax(dim=1)(outputs)
@@ -389,7 +391,7 @@ def train_model_CE_AUDIO_VIDEO_get_layer(audio_model, video_model, num_epochs=3,
                     pbar.update(1)
 
     # Guardar los pesos del cross_model al finalizar el entrenamiento
-    torch.save(cross_model.state_dict(), 'Models/Note:2_atenciónEmbebidos_VIDEO3D-1x1_RESIZE_AUDIO_1head:weights-Lr:1e-05-Epoch:50-Exercise:Words-duration_size:False.pth')                    
+    torch.save(cross_model.state_dict(), 'Models/Note:2_atenciónEmbebidos_VIDEO3D-1x1_RESIZE_AUDIO:weights-Lr:1e-05-Epoch:50-Exercise:Words-duration_size:False.pth')                    
 
 
     #Cargar los pesos

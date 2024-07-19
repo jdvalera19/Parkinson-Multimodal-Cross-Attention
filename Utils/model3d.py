@@ -9,9 +9,9 @@ class CNNModel3D(nn.Module):
         self.conv_layer1 = self._conv_layer_set(1, 32)
         self.conv_layer2 = self._conv_layer_set(32, 64)      
         #¿Aquí conv 1x1?
-        self.conv1x1 = nn.Conv3d(64, 28, kernel_size=(1, 1, 1))  # 1x1 Convolution que sea solo 1 característica       
+        #self.conv1x1 = nn.Conv3d(64, 28, kernel_size=(1, 1, 1))  # 1x1 Convolution que sea solo 1 característica       
         #self.fc1 = nn.Linear(1679616, 128)
-        self.fc1 = nn.Linear(734832, 4096) #Hay que calcular este numero
+        self.fc1 = nn.Linear(373248, 4096) #Hay que calcular este numero
         #self.fc1 = nn.Linear(1306368, 128)
         self.fc2 = nn.Linear(128, 2)
         self.relu = nn.LeakyReLU()
@@ -31,7 +31,7 @@ class CNNModel3D(nn.Module):
         #print(x.shape)
         out = self.conv_layer1(x)
         out = self.conv_layer2(out)
-        out = self.conv1x1(out)        
+        #out = self.conv1x1(out)        
         out = out.view(out.size(0), out.size(1)*out.size(2), out.size(3), out.size(4))
         #print(out.shape)
         if return_features:
@@ -49,7 +49,7 @@ class CNNModel3D(nn.Module):
         with torch.no_grad():
             out = self.conv_layer1(x)
             out = self.conv_layer2(out)
-            out = self.conv1x1(out)        
+            #out = self.conv1x1(out)        
             out = out.view(out.size(0), out.size(1) * out.size(2) * out.size(3) * out.size(4))
             out = out.view(out.size(0), -1) #aplanar tensor para el embebido
             print(out.size())
