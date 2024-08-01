@@ -139,8 +139,8 @@ class EmbeddingVGG16(nn.Module):
 
         # Modificar el clasificador para hacerlo más flexible
         self.classifier = nn.Sequential(
-            nn.Linear(24576, 4096), #Vowels
-            #nn.Linear(20480, 4096),  # Phonemes
+            #nn.Linear(24576, 4096), #Vowels
+            nn.Linear(20480, 4096),  # Phonemes
             #nn.Linear(8192, 4096),  # Words
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.5, inplace=False),
@@ -508,20 +508,32 @@ def adapt_state_dict(loaded_state_dict):
 
 def train_model_CE_AUDIO_VIDEO_WEIGHTS(audio_model, video_model, num_epochs, audio_dataloaders, video_dataloaders, audio_modality, video_modality, lr, device, patient):
     criterion = torch.nn.CrossEntropyLoss()
-    #optimizer_audio = torch.optim.Adam(audio_model.parameters(), lr=0.000001)
-    #optimizer_video = torch.optim.Adam(video_model.parameters(), lr=0.0001)
-    #torch.cuda.empty_cache() PROBAR SIN ESTO
+    # Cargar los pesos para cada paciente específico
+    audio_weight_path = f'./Models/AudioPhonemes/{patient}.pth'
+    video_weight_path = f'./Models/VideoPhonemes/{patient}.pth'
+    video_model.load_state_dict(torch.load(video_weight_path))
+    audio_model.load_state_dict(torch.load(audio_weight_path))
+    audio_model.eval()
+    video_model.eval()
 
-    #if audio_model and video_model().
+    # Inicializar el modelo de atención
+    cross_model = Embedding_RFBMultiHAttnNetwork_V4(query_dim=128, context_dim=128, filters_head=1)
+    cross_model.to(device)
+    optimizer_cross = torch.optim.Adam(cross_model.parameters(), lr=lr)
+
+    #if audio_model.training and video_model.training == True:
+    #    audio_model.eval()
+    #    video_model.eval()
 
     for epoch in range(num_epochs):
         for phase in audio_dataloaders.keys():
-
-            
+            if phase == 'train':
+                cross_model.train()
+            else:
+                cross_model.eval()
 
             running_loss = 0.0
             running_acc  = 0.0
-
             Y      = []
             Y_pred = []
             PK_props = []
@@ -533,77 +545,44 @@ def train_model_CE_AUDIO_VIDEO_WEIGHTS(audio_model, video_model, num_epochs, aud
     
             stream = tqdm(total=len(audio_dataloaders[phase]), desc = 'Epoch {}/{}-{}-loss:{:.4f}-acc:{:.4f}'.format(epoch+1, num_epochs, phase, running_loss, running_acc))
 
-            with stream as pbar:
-
+            with torch.set_grad_enabled(phase == 'train'):
                 for index, (audio_data, video_data) in enumerate(zip(audio_dataloaders[phase], video_dataloaders[phase])):
-                    
+                        
                     img_audio        = audio_data[audio_modality].type(torch.float).cuda()
                     img_video        = video_data[video_modality].type(torch.float).cuda()                    
                     labels     = audio_data['label'].cuda()
-                    sample     = audio_data['patient_id'][0]
-                    
-                    # Cargar los pesos para cada paciente específico
-                    audio_weight_path = f'./Models/AudioVowels/{sample}.pth'
-                    video_weight_path = f'./Models/VideoVowels/{sample}.pth'
-                    video_model.load_state_dict(torch.load(video_weight_path))
-                    audio_model.load_state_dict(torch.load(audio_weight_path))
-                    audio_model.eval()
-                    video_model.eval()
 
-                    repetition = audio_data['repetition']
-                    exercise   = audio_data['exercise']
-
-                    
+                        
                     embedding_audio = audio_model(img_audio, extract_features=True)
                     embedding_video = video_model.get_embedding(img_video) #Embebido de video
-                    
-                    context_dim = embedding_video.size(1)
-                    
-                    query_dim = embedding_audio.size(1)
-                    
-                    filters_head = 1 #1 cabeza acá?
-                    cross_model = Embedding_RFBMultiHAttnNetwork_V4(query_dim=query_dim, context_dim=context_dim,
-                                filters_head=filters_head)
-                    
-                    cross_model.to(device)
                     outputs = cross_model(embedding_audio, embedding_video)
                     loss        = criterion(outputs, labels)
 
                     if phase == 'train':
-                        optimizer_audio.zero_grad()
-                        optimizer_video.zero_grad()
+                        optimizer_cross.zero_grad()
                         loss.backward()
-                        optimizer_audio.step()
-                        optimizer_video.step()
-                        
+                        optimizer_cross.step()
+                            
                     running_loss += loss.item()
                     logits       = torch.nn.Softmax(dim=1)(outputs)
 
                     predicted = logits.max(1).indices
-                    Y_pred    += list(predicted.cpu().detach().numpy())
-                    Y         += list(labels.cpu().detach().numpy())
+                    Y.extend(labels.cpu().numpy())
+                    Y_pred.extend(predicted.cpu().numpy())
 
                     if phase == 'test':
-                        PK_props  += list(logits.cpu().detach().numpy()[:,1])
-                        C_props   += list(logits.cpu().detach().numpy()[:,0])
-                        Samples   += sample
-                        exercises += exercise
-                        repetitions += repetition
+                        PK_props.extend(logits[:, 1].cpu().numpy())
+                        C_props.extend(logits[:, 0].cpu().numpy())
+                        Samples.extend(audio_data['patient_id'])
+                        exercises.extend(audio_data['exercise'])
+                        repetitions.extend(audio_data['repetition'])
 
-                    total_samples = index + 1
                     running_acc = accuracy_score(Y, Y_pred)
-                    stream.desc = 'Epoch {}/{}-{}-loss:{:.4f}-acc:{:.4f}'.format(epoch+1, num_epochs, phase, running_loss/total_samples, running_acc)
-
-                    pbar.update(1)
+                    stream.set_description('Epoch {}/{}-{}-loss:{:.4f}-acc:{:.4f}'.format(epoch+1, num_epochs, phase, running_loss/(index+1), running_acc))
+                    stream.update()
 
     # Guardar los pesos del cross_model al finalizar el entrenamiento
-    torch.save(cross_model.state_dict(), 'Models/atenciónEmbebidos_AUDIO_VIDEO3D_256LINEAR:weights-Lr:1e-05-Epoch:50-Exercise:Vowels-duration_size:False.pth')                    
-
-
-    #Cargar los pesos
-    #cross_model = RFBMultiHAttnNetwork_V4(query_dim=query_dim, context_dim=context_dim, filters_head=filters_head)
-    #cross_model.load_state_dict(torch.load('cross_model_weights.pth'))
-    #cross_model.to(device)
+    torch.save(cross_model.state_dict(), f'./Models/AudioVideoPhonemes/{patient}.pth')
     
     return Y, Y_pred, PK_props, C_props, Samples, exercises, repetitions
 

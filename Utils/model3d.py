@@ -12,8 +12,8 @@ class CNNModel3D(nn.Module):
         #¿Aquí conv 1x1?
         #self.conv1x1 = nn.Conv3d(64, 28, kernel_size=(2, 2, 2))  # 1x1 Convolution que sea solo 1 característica       
         #self.fc1 = nn.Linear(1679616, 128) #Vowels
-        self.fc1 = nn.Linear(373248, 128) #Words  
-        #self.fc1 = nn.Linear(1306368, 128) #Phonemes
+        #self.fc1 = nn.Linear(373248, 128) #Words  
+        self.fc1 = nn.Linear(1306368, 128) #Phonemes
         self.fc2 = nn.Linear(128, 2)
         self.relu = nn.LeakyReLU()
         self.batch=nn.BatchNorm1d(128)
