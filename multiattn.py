@@ -224,7 +224,7 @@ class CrossAttention(nn.Module):
     def forward(self, query_input, context_input):
         #m_batchsize_query, C_q, width_q, height_q = query_input.size()
         m_batchsize_query, C_q = query_input.size()
-        #m_batchsize_context, C_c, width_c, height_c = context_input.size()
+        #m_batchsize_context, C_c, width_c, height_c = context_input.size() #REVISAR POR QUE NO SE USA W y H
         m_batchsize_context, C_c = context_input.size()
 
         # Se proyecta el q, k y v
@@ -232,7 +232,7 @@ class CrossAttention(nn.Module):
         proj_q = self.query_conv(query_input)
         #proj_k = self.key_conv(context_input).view(m_batchsize_context, -1, width_c * height_c)
         proj_k = self.key_conv(context_input)
-        #proj_v = self.value_conv(context_input).view(m_batchsize_context, -1, width_c * height_c)
+        #proj_v = self.value_conv(context_input).view(m_batchsize_context, -1, width_c * height_c) #REVISAR ESTA TRANSPOSICIÓN
         proj_v = self.value_conv(context_input)
 
         proj_k = proj_k.transpose(-2, -1)
@@ -337,3 +337,45 @@ class BasicConv2D(nn.Module):
         x = self.relu(x)
         #Agregar acá un batch norm
         return x
+    
+
+class New_RFBMultiHAttnNetwork_V4(nn.Module):
+    def __init__(self, query_dim, context_dim, filters_head):
+        super(New_RFBMultiHAttnNetwork_V4, self).__init__()
+        self.query_dim = query_dim
+        self.context_dim = context_dim
+        self.filters_head = filters_head
+
+        # Define layers for attention mechanism
+        self.query_conv = nn.Conv2d(query_dim, filters_head, kernel_size=1)
+        self.key_conv = nn.Conv2d(context_dim, filters_head, kernel_size=1)
+        self.value_conv = nn.Conv2d(context_dim, filters_head, kernel_size=1)
+        self.out_conv = nn.Conv2d(filters_head, query_dim, kernel_size=1)
+
+    def forward(self, query, context):
+        # Adjust dimensions if needed
+        if query.dim() == 2:  # (batch_size, embedding_dim)
+            query = query.unsqueeze(-1)  # (batch_size, embedding_dim, 1)
+        if context.dim() == 2:  # (batch_size, embedding_dim)
+            context = context.unsqueeze(-1)  # (batch_size, embedding_dim, 1)
+
+        # Apply convolutions
+        query = self.query_conv(query)
+        key = self.key_conv(context)
+        value = self.value_conv(context)
+        
+        # Flatten and transpose for matrix multiplication
+        query = query.view(query.size(0), self.filters_head, -1)
+        key = key.view(key.size(0), self.filters_head, -1).transpose(1, 2)
+        value = value.view(value.size(0), self.filters_head, -1)
+
+        # Attention mechanism
+        attention = torch.bmm(query, key)
+        attention = F.softmax(attention, dim=-1)
+        out = torch.bmm(attention, value)
+        
+        # Reshape and apply output convolution
+        out = out.view(out.size(0), self.filters_head, -1)
+        out = self.out_conv(out)
+
+        return out    

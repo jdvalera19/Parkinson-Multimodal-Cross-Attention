@@ -44,9 +44,9 @@ if __name__== "__main__":
     lr          = 0.00001
     epoch       = 50
     batch_size  = 5
-    exercise    = 'Words'
+    exercise    = 'Vowels'
     path_data   = '/data/franklin_pupils/Jose/Dataset/AudioVisualData_v7'
-    note        = '2_atenciónEmbebidos_VIDEO3D-1x1_RESIZE_AUDIO:weights' 
+    note        = 'atenciónEmbebidos_AUDIO_VIDEO3D_256LINEAR:weights' 
     s_duration  = False
 
     #-------------------------------------------------------------------
@@ -188,7 +188,7 @@ if __name__== "__main__":
         video_model.to(device)
         #print(video_model.conv_layer2)
 
-        audio_model = CustomVGG16()
+        audio_model = EmbeddingVGG16(input_channels=2)
         audio_model.to(device)     
         
         video_dataloaders = {"train":video_train_loader, "test":video_test_loader}

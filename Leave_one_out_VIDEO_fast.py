@@ -27,12 +27,12 @@ if __name__== "__main__":
     #-------------------------------------------------------------------
     # Define the model parameters
     #-------------------------------------------------------------------
-    lr          = 0.00001
-    epoch       = 100
+    lr          = 0.0001
+    epoch       = 50
     batch_size  = 5
-    exercise    = 'Phonemes'
+    exercise    = 'Words'
     path_data   = '/data/franklin_pupils/Jose/Dataset/AudioVisualData_v7'
-    note        = 'VIDEO:weights'
+    note        = 'VIDEO_2:weights'
     s_duration  = False
 
     #-------------------------------------------------------------------
@@ -157,7 +157,9 @@ if __name__== "__main__":
                                                                                         num_epochs  = epoch,
                                                                                         dataloaders = dataloaders,
                                                                                         modality    = 'video',
-                                                                                        lr          = lr)
+                                                                                        lr          = lr,
+                                                                                        patient_id=patient,
+                                                                                        exercise=exercise)
 
         Y_true_g        += Y_true
         Y_pred_g        += Y_pred
@@ -180,5 +182,3 @@ if __name__== "__main__":
     data_frame_of_results.to_csv(dataframe_of_results_name)
 
     view_results(dataframe_of_results_name)
-
-

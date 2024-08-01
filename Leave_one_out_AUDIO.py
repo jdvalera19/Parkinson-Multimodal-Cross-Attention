@@ -19,12 +19,12 @@ if __name__== "__main__":
     #----------------------------------------------------------------
     # Define the model parameters
     #----------------------------------------------------------------
-    lr                = 0.00001
-    epoch             = 50
-    batch_size        = 4
+    lr                = 0.000001
+    epoch             = 100
+    batch_size        = 5
     exercise          = 'Words'
     path_data         = '/data/franklin_pupils/Jose/Dataset/AudioVisualData_v7'
-    note              = 'AUDIO:resnet50_weights'
+    note              = 'AUDIO_128:weights'
     s_duration        = False
 
     #-------------------------------------------------------------------
@@ -85,7 +85,7 @@ if __name__== "__main__":
         # Load network2
         #----------------------------------------------------------------
         #model = load_resnet50(pre_train = True, input_channels=2)
-        model = load_vgg16(pre_train = True, input_channels=2)
+        model = load_vgg16_for_embedding_2(pre_train=True, input_channels=2)
         model.to(device)
 
         #----------------------------------------------------------------
@@ -96,7 +96,9 @@ if __name__== "__main__":
                                                                                                             num_epochs  = epoch,
                                                                                                             dataloaders = dataloaders,
                                                                                                             modality    = 'audio',
-                                                                                                            lr          = lr)
+                                                                                                            lr          = lr,
+                                                                                                            patient_id=patient,
+                                                                                                            exercise=exercise)
 
         Y_true_g        += Y_true
         Y_pred_g        += Y_pred

@@ -94,7 +94,7 @@ def plot_alpha(data_plot, title):
 
 def generate_final_visualization(resultAudio, resultVideo, title, key, alpha):
 
-    plt.rcParams["font.family"] = "Arial"
+    plt.rcParams["font.family"] = "DejaVu Sans"
 
     dataAudio = pd.read_csv(resultAudio)
     dataVideo = pd.read_csv(resultVideo)
