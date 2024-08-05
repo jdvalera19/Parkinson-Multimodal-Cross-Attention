@@ -280,6 +280,31 @@ class CrossAttentionEmbedding(nn.Module):
 
         return att_output
 
+class CrossAttentionEmbedding_2(nn.Module):
+    def __init__(self, emb_dim):
+        super(CrossAttentionEmbedding_2, self).__init__()
+        self.query_proy = nn.Linear(emb_dim, emb_dim)
+        self.key_proy = nn.Linear(emb_dim, emb_dim)
+        self.value_proy = nn.Linear(emb_dim, emb_dim)
+        self.softmax = nn.Softmax(dim=-1)
+
+    def forward(self, query, key, value):
+
+        # Proyectar q, k, y v
+        query = self.query_proy(query) 
+        key = self.key_proy(key)  
+        value = self.value_proy(value) 
+
+        # Calcula los puntajes de atención usando producto punto y softmax
+        attention_scores = torch.matmul(query, key.transpose(-2, -1))
+        attention_scores = attention_scores / torch.sqrt(torch.tensor(query.size(-1), dtype=torch.float32))
+        att_map = self.softmax(attention_scores)
+
+        # Ponderar v con la matriz de atención
+        att_output = torch.matmul(att_map, value)  # [batch_size, hidden_dim]
+
+        return att_output
+
 class RFBMultiHAttnNetwork_V4(nn.Module):
     def __init__(self, query_dim, context_dim, filters_head):
         super(RFBMultiHAttnNetwork_V4, self).__init__()
@@ -305,26 +330,24 @@ class RFBMultiHAttnNetwork_V4(nn.Module):
         return x
  
 class Embedding_RFBMultiHAttnNetwork_V4(nn.Module):
-    def __init__(self, query_dim, context_dim, filters_head):
+    def __init__(self, embed_dim, num_classes=2):
         super(Embedding_RFBMultiHAttnNetwork_V4, self).__init__()
-        
-        self.cross_attention = CrossAttentionEmbedding(query_dim=query_dim, context_dim=context_dim, 
-                                                       filters_head=filters_head)
-        self.batch_norm = nn.BatchNorm1d(filters_head)  # Cambiar a BatchNorm2d
-        self.dropout = nn.Dropout(0.1)
-        self.adaptive_pool = nn.AdaptiveAvgPool1d(1) # Cambiar a AdaptiveAvgPool2d
-        
-        self.fc1 = nn.Linear(filters_head, 2) 
+        self.cross_attention = CrossAttentionEmbedding_2(embed_dim)
+        self.fc = nn.Linear(embed_dim, num_classes)
+        self.avg_pool = nn.AdaptiveAvgPool1d(1)
+        self.dropout = nn.Dropout(0.5)
 
-    def forward(self, query_input, context_input):
-        att_output = self.cross_attention(query_input, context_input)
-        att_output = att_output.unsqueeze(2)  # Añadir una dimensión para que sea compatible con AdaptiveAvgPool1d
-        att_output = self.adaptive_pool(att_output)
-        att_output = att_output.squeeze(2)  # Eliminar la dimensión adicional después del pooling
-        att_output = self.batch_norm(att_output)
-        att_output = self.dropout(att_output)
-        att_output = self.fc1(att_output)
-        return att_output
+    def forward(self, audio_embed, video_embed):
+        
+        attended_output = self.cross_attention(audio_embed, video_embed, video_embed)
+        # Añadir una dimensión artificial y aplicar AdaptiveAvgPool1d
+        attended_output = attended_output.unsqueeze(2)  # Añadir una dimensión
+        pooled_output = self.avg_pool(attended_output)
+        pooled_output = pooled_output.squeeze(2)  # Eliminar la dimensión artificial
+        # Aplicación de BatchNorm, Dropout y capa lineal
+        output = self.dropout(pooled_output)
+        output = self.fc(output)
+        return output
 
 class BasicConv2D(nn.Module):
     def __init__(self, in_channel, out_channel, kernel_size=(3, 3), padding=1):
