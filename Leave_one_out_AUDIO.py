@@ -1,5 +1,7 @@
 import os
 
+from Utils.model2d import CNNModel2D
+
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
@@ -22,9 +24,9 @@ if __name__== "__main__":
     lr                = 0.000001
     epoch             = 100
     batch_size        = 5
-    exercise          = 'Words'
-    path_data         = '/data/franklin_pupils/Jose/Dataset/AudioVisualData_v7'
-    note              = 'AUDIO_128:weights'
+    exercise          = 'Phonemes'
+    path_data         = '/home/arumota_pupils/Jose/Dataset/AudioVisualData_v7'
+    note              = '3_AUDIO_CNN2D:weights'
     s_duration        = False
 
     #-------------------------------------------------------------------
@@ -85,7 +87,8 @@ if __name__== "__main__":
         # Load network2
         #----------------------------------------------------------------
         #model = load_resnet50(pre_train = True, input_channels=2)
-        model = load_vgg16_for_embedding_2(pre_train=True, input_channels=2)
+        #model = load_vgg16_for_embedding_2(pre_train=True, input_channels=2)
+        model = CNNModel2D() #2d Model
         model.to(device)
 
         #----------------------------------------------------------------

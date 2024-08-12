@@ -14,7 +14,7 @@ from torchvision.models import VGG16_Weights
 
 from tqdm            import tqdm
 from Utils.i3dpt     import I3D, Unit3Dpy
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, roc_auc_score
 from torchmetrics    import Accuracy
 from torch.nn.functional import interpolate
 
@@ -53,6 +53,7 @@ def load_resnet50(pre_train = True, input_channels=1):
 def load_vgg16(pre_train = True, input_channels=1):
 
     base_model  = models.vgg16(weights=VGG16_Weights.IMAGENET1K_V1)
+    base_model  = models.vgg16()
     
     base_model.features[0] = torch.nn.Conv2d(input_channels, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
 
@@ -63,6 +64,56 @@ def load_vgg16(pre_train = True, input_channels=1):
     base_model.classifier = torch.nn.Sequential(*features)
 
     return base_model
+
+def load_vgg16_2(pre_train=True, input_channels=1, extract_features=False):
+    class CustomVGG16(models.VGG):
+        def __init__(self, pre_trained_model):
+            super().__init__(pre_trained_model.features)
+            self.avgpool = pre_trained_model.avgpool
+            self.classifier = pre_trained_model.classifier
+        
+        def forward(self, x, extract_features=None):
+            x = self.features(x)
+            x = self.avgpool(x)
+            #x = torch.flatten(x, start_dim=1)
+            x = x.view(x.size(0), -1) #REVISAR ESTO
+            if extract_features:
+                for layer in self.classifier[:-1]:
+                    x = layer(x)
+                return x
+            else:
+                x = self.classifier(x)
+                return x
+
+    base_model = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1)
+    base_model.features[0] = torch.nn.Conv2d(input_channels, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+
+    num_features = base_model.classifier[-1].in_features
+    features = list(base_model.classifier.children())[:-1]  # Remove the last layer
+    features.append(torch.nn.Linear(num_features, 2))  # Append new output layer
+    base_model.classifier = torch.nn.Sequential(*features)
+
+    # Wrap the base model in the custom class that has the new forward method
+    return CustomVGG16(base_model)
+
+def load_vgg16_3(pre_train=True, input_channels=1, extract_features=False):
+    base_model = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1 if pre_train else None)
+    base_model.features[0] = torch.nn.Conv2d(input_channels, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+
+    if extract_features:
+        # Modify the model to return embeddings from the last layer of the classifier minus one
+        num_features = base_model.classifier[-3].in_features  # typically the layer before the last ReLU
+        base_model.classifier = torch.nn.Sequential(
+            *list(base_model.classifier.children())[:-3]  # Remove last three layers (ReLU, Dropout, Linear)
+        )
+        return base_model
+    else:
+        # Standard modification, just change the last layer to output 2 classes
+        num_features = base_model.classifier[-1].in_features
+        features = list(base_model.classifier.children())[:-1]  # Remove the last layer
+        features.extend([torch.nn.Linear(num_features, 2)])
+        base_model.classifier = torch.nn.Sequential(*features)
+        return base_model
 
 class ModifiedVGG16(nn.Module):
     def __init__(self, pre_train=True, input_channels=1):
@@ -139,8 +190,8 @@ class EmbeddingVGG16(nn.Module):
 
         # Modificar el clasificador para hacerlo más flexible
         self.classifier = nn.Sequential(
-            #nn.Linear(24576, 4096), #Vowels
-            nn.Linear(20480, 4096),  # Phonemes
+            nn.Linear(24576, 4096), #Vowels
+            #nn.Linear(20480, 4096),  # Phonemes
             #nn.Linear(8192, 4096),  # Words
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.5, inplace=False),
@@ -172,8 +223,8 @@ class CustomVGG16(nn.Module):
         self.base_model = load_vgg16(input_channels=input_channels)
         self.base_model.classifier = nn.Sequential(
             #nn.Linear(20480, 4096),  # Phonemes
-            #nn.Linear(8192, 4096),  # Words
-            nn.Linear(24576, 4096),  # Vowels
+            nn.Linear(8192, 4096),  # Words
+            #nn.Linear(24576, 4096),  # Vowels
             nn.ReLU(True),
             nn.Dropout(),
             nn.Linear(4096, 256),
@@ -505,6 +556,90 @@ def adapt_state_dict(loaded_state_dict):
         new_key = 'base_model.' + key if not key.startswith('base_model.') else key
         new_state_dict[new_key] = value
     return new_state_dict
+
+def train_model_CE_AUDIO_VIDEO_WEIGHTS_2(audio_model, video_model, num_epochs, audio_dataloaders, video_dataloaders, audio_modality, video_modality, lr, device, patient):
+    criterion = torch.nn.CrossEntropyLoss()
+    # Cargar los pesos para cada paciente específico
+    audio_weight_path = f'./Models/AudioVowels/{patient}.pth'
+    video_weight_path = f'./Models/VideoVowels/{patient}.pth'
+    video_model.load_state_dict(torch.load(video_weight_path))
+    audio_model.load_state_dict(torch.load(audio_weight_path))
+    audio_model.eval()
+    video_model.eval()
+    #auc_scores = []
+
+    # Inicializar el modelo de atención
+    cross_model = Embedding_RFBMultiHAttnNetwork_V4(embed_dim=128, num_classes=2)
+    cross_model.to(device)
+    optimizer_cross = torch.optim.Adam(cross_model.parameters(), lr=lr)
+
+    #if audio_model.training and video_model.training == True:
+    #    audio_model.eval()
+    #    video_model.eval()
+
+    for epoch in range(num_epochs):
+        for phase in audio_dataloaders.keys():
+            if phase == 'train':
+                cross_model.train()
+            else:
+                cross_model.eval()
+
+            running_loss = 0.0
+            running_acc  = 0.0
+            Y      = []
+            Y_pred = []
+            PK_props = []
+            C_props = []
+            Samples = []
+            exercises = []
+            repetitions = []
+            v = 1
+    
+            stream = tqdm(total=len(audio_dataloaders[phase]), desc = 'Epoch {}/{}-{}-loss:{:.4f}-acc:{:.4f}'.format(epoch+1, num_epochs, phase, running_loss, running_acc))
+
+            with torch.set_grad_enabled(phase == 'train'):
+                for index, (audio_data, video_data) in enumerate(zip(audio_dataloaders[phase], video_dataloaders[phase])):
+                        
+                    img_audio        = audio_data[audio_modality].type(torch.float).cuda()
+                    img_video        = video_data[video_modality].type(torch.float).cuda()                    
+                    labels     = audio_data['label'].cuda()
+
+                        
+                    embedding_audio = audio_model(img_audio, extract_features=True)
+                    embedding_video = video_model.get_embedding(img_video) #Embebido de video
+                    outputs = cross_model(embedding_audio, embedding_video)
+                    loss        = criterion(outputs, labels)
+
+                    if phase == 'train':
+                        optimizer_cross.zero_grad()
+                        loss.backward()
+                        optimizer_cross.step()
+                            
+                    running_loss += loss.item()
+                    logits       = torch.nn.Softmax(dim=1)(outputs)
+
+                    predicted = logits.max(1).indices
+                    Y.extend(labels.cpu().numpy())
+                    Y_pred.extend(predicted.cpu().numpy())
+
+                    if phase == 'test':
+                        PK_props.extend(logits[:, 1].cpu().numpy())
+                        C_props.extend(logits[:, 0].cpu().numpy())
+                        Samples.extend(audio_data['patient_id'])
+                        exercises.extend(audio_data['exercise'])
+                        repetitions.extend(audio_data['repetition'])
+
+                    running_acc = accuracy_score(Y, Y_pred)
+                    stream.set_description('Epoch {}/{}-{}-loss:{:.4f}-acc:{:.4f}'.format(epoch+1, num_epochs, phase, running_loss/(index+1), running_acc))
+                    stream.update()
+        
+        #if phase == 'test':
+        #    auc = roc_auc_score(Y, PK_props)  # AUC calculation
+        #    auc_scores.extend(auc)
+    # Guardar los pesos del cross_model al finalizar el entrenamiento
+    torch.save(cross_model.state_dict(), f'./Models/2AudioVideoVowels/{patient}.pth')
+    
+    return Y, Y_pred, PK_props, C_props, Samples, exercises, repetitions
 
 def train_model_CE_AUDIO_VIDEO_WEIGHTS(audio_model, video_model, num_epochs, audio_dataloaders, video_dataloaders, audio_modality, video_modality, lr, device, patient):
     criterion = torch.nn.CrossEntropyLoss()
@@ -908,7 +1043,7 @@ def train_model_CE(model, num_epochs, dataloaders, modality, lr, patient_id, exe
 
                     pbar.update(1)
     # Guarda los pesos después de entrenar todas las épocas para un paciente
-    torch.save(model.state_dict(), f'./Models/VideoWords/{patient_id}.pth')
+    torch.save(model.state_dict(), f'./Models/VideoVowels/{patient_id}.pth')
     return model, Y, Y_pred, PK_props, C_props, Samples, exercises, repetitions
 
 def train_model_CE_AUDIO(model, num_epochs, dataloaders, modality, lr, patient_id, exercise):
@@ -974,6 +1109,8 @@ def train_model_CE_AUDIO(model, num_epochs, dataloaders, modality, lr, patient_i
 
                     pbar.update(1)
     # Guarda los pesos después de entrenar todas las épocas para un paciente
+    #torch.save(model.state_dict(), f'./Models/AudioVowels/{patient_id}.pth')    
+    #torch.save(model.state_dict(), f'./Models/AudioPhonemes/{patient_id}.pth')    
     torch.save(model.state_dict(), f'./Models/AudioWords/{patient_id}.pth')    
 
     return model, Y, Y_pred, PK_props, C_props, Samples, exercises, repetitions
