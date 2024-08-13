@@ -22,9 +22,9 @@ if __name__== "__main__":
     lr                = 0.000001
     epoch             = 100
     batch_size        = 5
-    exercise          = 'Words'
+    exercise          = 'Vowels'
     path_data         = '/data/franklin_pupils/Jose/Dataset/AudioVisualData_v7'
-    note              = 'AUDIO_128:weights'
+    note              = '2_AUDIO_128:weights'
     s_duration        = False
 
     #-------------------------------------------------------------------

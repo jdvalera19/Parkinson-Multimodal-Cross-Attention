@@ -30,9 +30,9 @@ if __name__== "__main__":
     lr          = 0.0001
     epoch       = 50
     batch_size  = 5
-    exercise    = 'Words'
+    exercise    = 'Vowels'
     path_data   = '/data/franklin_pupils/Jose/Dataset/AudioVisualData_v7'
-    note        = 'VIDEO_2:weights'
+    note        = '3_VIDEO:weights'
     s_duration  = False
 
     #-------------------------------------------------------------------
