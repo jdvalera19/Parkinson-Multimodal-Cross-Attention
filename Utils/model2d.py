@@ -6,20 +6,13 @@ class CNNModel2D(nn.Module):
     def __init__(self):
         super(CNNModel2D, self).__init__()
 
-        self.conv_layer1 = self._conv_layer_set(1, 32)
+        #self.conv_layer1 = self._conv_layer_set(1, 32)
+        self.conv_layer1 = self._conv_layer_set(2, 32)
         self.conv_layer2 = self._conv_layer_set(32, 64)
-        self.conv1x1 = nn.Conv3d(64, 16, kernel_size=(1, 1, 1))  # 1x1 Convolution  
-        #self.conv_layer3 = self._conv_layer_set(64, 256)
-        """
-        self.conv_layer4 = self._conv_layer_set(96, 128)
-        self.conv_layer5 = self._conv_layer_set(128, 160)
-        self.conv_layer6 = self._conv_layer_set(160, 192)
-        self.conv_layer7 = self._conv_layer_set(192, 224)
-        self.conv_layer8 = self._conv_layer_set(192, 224)
-        self.conv_layer9 = self._conv_layer_set(224, 256)
-        """
         #self.fc1 = nn.Linear(373248, 128) #3D
-        self.fc1 = nn.Linear(186624, 128) #2D
+        #self.fc1 = nn.Linear(194432, 128) #2D Vowels
+        self.fc1 = nn.Linear(154752, 128) #2D Phonemes
+        #self.fc1 = nn.Linear(59520, 128) #2D Words
         self.fc2 = nn.Linear(128, 2)
         self.relu = nn.LeakyReLU()
         self.batch=nn.BatchNorm1d(128)
@@ -35,7 +28,7 @@ class CNNModel2D(nn.Module):
         )
         return conv_layer
 
-    def forward(self, x, return_features=False):
+    def forward(self, x, return_features=False, return_embedding=False):
         # Set 1
         #print(x.shape)
         out = self.conv_layer1(x)
@@ -43,8 +36,8 @@ class CNNModel2D(nn.Module):
         out = self.conv_layer2(out)
         #out = self.conv1x1(out)   
         #out = self.conv_layer3(out)
-        """
         out = out.view(out.size(0), -1)
+        """
         out = self.conv_layer3(out)
         out = self.conv_layer4(out)
         out = self.conv_layer5(out)
@@ -61,6 +54,8 @@ class CNNModel2D(nn.Module):
         out = self.relu(out)
         out = self.batch(out)
         out = self.drop(out)
+        if return_embedding:
+            return out        
         out = self.fc2(out)
         
         return out
