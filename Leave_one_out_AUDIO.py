@@ -85,7 +85,8 @@ if __name__== "__main__":
         # Load network2
         #----------------------------------------------------------------
         #model = load_resnet50(pre_train = True, input_channels=2)
-        model = load_vgg16_for_embedding_2(pre_train=True, input_channels=2)
+        #model = load_vgg16_for_embedding_2(pre_train=True, input_channels=2)
+        model = CNNModel2D() #2d Model
         model.to(device)
 
         #----------------------------------------------------------------
