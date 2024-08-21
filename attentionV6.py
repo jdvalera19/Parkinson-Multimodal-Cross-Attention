@@ -18,7 +18,8 @@ from Utils.model3d import *
 from multiattn import RFBMultiHAttnNetwork_V4
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+#os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "8"
 
 """
 def set_seed(seed_value):
@@ -45,7 +46,8 @@ if __name__== "__main__":
     epoch       = 50
     batch_size  = 5
     exercise    = 'Phonemes'
-    path_data   = '/data/franklin_pupils/Jose/Dataset/AudioVisualData_v7'
+    path_data   = '/home/Dataset/AudioVisualData_v7'
+    #path_data   = '/data/franklin_pupils/Jose/Dataset/AudioVisualData_v7'
     note        = 'atenciónEmbebidos_AUDIO_VIDEO3D_PesosGuardados:weights' 
     s_duration  = False
 
@@ -182,11 +184,11 @@ if __name__== "__main__":
         # Load both networks
         #----------------------------------------------------------------
         #video_model = CNNModel2D()
-        video_model = CNNModel3D()
+        video_model = CNNModel3D() #Video
         video_model.to(device)
         #print(video_model.conv_layer2)
 
-        audio_model = load_vgg16_for_embedding_2(pre_train=True, input_channels=2)
+        audio_model = CNNModel2D() #Audio
         audio_model.to(device)     
         
         video_dataloaders = {"train":video_train_loader, "test":video_test_loader}
