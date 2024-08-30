@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy             as np
 import torch.nn.functional as F
 import torch.nn as nn
+import torch.optim as optim
 
 import torchvision.models as models
 from torchvision.models import VGG16_Weights
@@ -18,7 +19,7 @@ from sklearn.metrics import accuracy_score
 from torchmetrics    import Accuracy
 from torch.nn.functional import interpolate
 
-from multiattn import Embedding_RFBMultiHAttnNetwork_V4, New_RFBMultiHAttnNetwork_V4, RFBMultiHAttnNetwork_V4
+from multiattn import *
 
 
 
@@ -509,18 +510,22 @@ def adapt_state_dict(loaded_state_dict):
 def train_model_CE_AUDIO_VIDEO_WEIGHTS(audio_model, video_model, num_epochs, audio_dataloaders, video_dataloaders, audio_modality, video_modality, lr, device, patient):
     criterion = torch.nn.CrossEntropyLoss()
     # Cargar los pesos para cada paciente específico
-    audio_weight_path = f'./Models/AudioPhonemes/{patient}.pth'
-    video_weight_path = f'./Models/VideoPhonemes/{patient}.pth'
+    audio_weight_path = f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models/AudioPhonemes/{patient}.pth'
+    video_weight_path = f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models/VideoPhonemes/{patient}.pth'
     video_model.load_state_dict(torch.load(video_weight_path))
     audio_model.load_state_dict(torch.load(audio_weight_path))
     audio_model.eval()
     video_model.eval()
 
     # Inicializar el modelo de atención
-    cross_model = Embedding_RFBMultiHAttnNetwork_V4(query_dim=128, context_dim=128, filters_head=1)
+    #cross_model = RFBMultiHeadAttn_V2(in_dim_q=128, in_dim_kv=128, filters_head=2, num_multiheads=2, num_classes=2)
+    cross_model = RFBMultiHeadAttn_V1(in_dim=8, filters_head=8, num_multiheads=2)
     cross_model.to(device)
     optimizer_cross = torch.optim.Adam(cross_model.parameters(), lr=lr)
-
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer_cross, mode='min', factor=0.1, patience=5)
+    early_stopping = EarlyStopping(patience=40, verbose=False, delta=0.01)
+    lr_history = []  # To store learning rate
+    val_loss_history = []  # To store validation losses
     #if audio_model.training and video_model.training == True:
     #    audio_model.eval()
     #    video_model.eval()
@@ -553,9 +558,10 @@ def train_model_CE_AUDIO_VIDEO_WEIGHTS(audio_model, video_model, num_epochs, aud
                     labels     = audio_data['label'].cuda()
 
                         
-                    embedding_audio = audio_model(img_audio, extract_features=True)
-                    embedding_video = video_model.get_embedding(img_video) #Embebido de video
-                    outputs = cross_model(embedding_audio, embedding_video)
+                    embedding_audio = audio_model(img_audio, return_embedding=True) #Embebido de audio
+                    embedding_video = video_model(img_video, return_embedding=True) #Embebido de video
+                    #outputs = cross_model(embedding_audio, embedding_video)
+                    outputs = cross_model(embedding_video)
                     loss        = criterion(outputs, labels)
 
                     if phase == 'train':
@@ -571,20 +577,203 @@ def train_model_CE_AUDIO_VIDEO_WEIGHTS(audio_model, video_model, num_epochs, aud
                     Y_pred.extend(predicted.cpu().numpy())
 
                     if phase == 'test':
+                        epoch_val_loss = running_loss / len(audio_dataloaders[phase].dataset)
                         PK_props.extend(logits[:, 1].cpu().numpy())
                         C_props.extend(logits[:, 0].cpu().numpy())
                         Samples.extend(audio_data['patient_id'])
                         exercises.extend(audio_data['exercise'])
                         repetitions.extend(audio_data['repetition'])
-
+                        scheduler.step(epoch_val_loss)
+                        early_stopping(epoch_val_loss)
+                        current_lr = optimizer_cross.param_groups[0]['lr']
+                        lr_history.append(current_lr)
+                        val_loss_history.append(epoch_val_loss)
+                        #print(f'Epoch {epoch+1}: val_loss = {epoch_loss:.4f}, lr = {current_lr:.6f}')
+                        if early_stopping.early_stop:                
+                            print("Early stopping triggered.")
+                            break
                     running_acc = accuracy_score(Y, Y_pred)
                     stream.set_description('Epoch {}/{}-{}-loss:{:.4f}-acc:{:.4f}'.format(epoch+1, num_epochs, phase, running_loss/(index+1), running_acc))
                     stream.update()
 
+        if early_stopping.early_stop:
+            break      
+
     # Guardar los pesos del cross_model al finalizar el entrenamiento
-    torch.save(cross_model.state_dict(), f'./Models/AudioVideoPhonemes/{patient}.pth')
+    torch.save(cross_model.state_dict(), f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models/AudioVideoPhonemes/{patient}.pth')
     
-    return Y, Y_pred, PK_props, C_props, Samples, exercises, repetitions
+    return Y, Y_pred, PK_props, C_props, Samples, exercises, repetitions, val_loss_history, lr_history
+
+def train_model_CE_AUDIO_VIDEO_WEIGHTS_PRUEBA_ALEJANDRA(video_model, num_epochs, audio_dataloaders, video_dataloaders, audio_modality, video_modality, lr, device, patient):
+    criterion = torch.nn.CrossEntropyLoss()
+    # Cargar los pesos para cada paciente específico
+    #audio_weight_path = f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models/AudioPhonemes/{patient}.pth'
+    #video_weight_path = f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models/VideoPhonemes/{patient}.pth'
+    #video_model.load_state_dict(torch.load(video_weight_path))
+    #audio_model.load_state_dict(torch.load(audio_weight_path))
+    #audio_model.eval()
+    #video_model.eval()
+
+    # Inicializar el modelo de atención
+    #cross_model = RFBMultiHeadAttn_V2(in_dim_q=128, in_dim_kv=128, filters_head=2, num_multiheads=2, num_classes=2)
+    cross_model = RFBMultiHAttnNetwork_V3()
+    cross_model.to(device)
+    optimizer_cross = torch.optim.Adam(cross_model.parameters(), lr=lr)
+    #scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer_cross, mode='min', factor=0.1, patience=5)
+    #early_stopping = EarlyStopping(patience=40, verbose=False, delta=0.01)
+    lr_history = []  # To store learning rate
+    val_loss_history = []  # To store validation losses
+    #if audio_model.training and video_model.training == True:
+    #    audio_model.eval()
+    #    video_model.eval()
+
+    for epoch in range(num_epochs):
+        for phase in audio_dataloaders.keys():
+            if phase == 'train':
+                cross_model.train()
+            else:
+                cross_model.eval()
+
+            running_loss = 0.0
+            running_acc  = 0.0
+            Y      = []
+            Y_pred = []
+            PK_props = []
+            C_props = []
+            Samples = []
+            exercises = []
+            repetitions = []
+            v = 1
+    
+            stream = tqdm(total=len(audio_dataloaders[phase]), desc = 'Epoch {}/{}-{}-loss:{:.4f}-acc:{:.4f}'.format(epoch+1, num_epochs, phase, running_loss, running_acc))
+
+            with torch.set_grad_enabled(phase == 'train'):
+                for index, (audio_data, video_data) in enumerate(zip(audio_dataloaders[phase], video_dataloaders[phase])):
+                        
+                    img_audio        = audio_data[audio_modality].type(torch.float).cuda()
+                    img_video        = video_data[video_modality].type(torch.float).cuda()                    
+                    labels     = audio_data['label'].cuda()
+
+                        
+                    #embedding_audio = audio_model(img_audio, return_embedding=True) #Embebido de audio
+                    #embedding_video = video_model(img_video, return_embedding=True) #Embebido de video
+                    features_video = video_model(img_video, return_features=True) #Características de video
+                    #outputs = cross_model(embedding_audio, embedding_video)
+                    outputs = cross_model(features_video)
+                    loss        = criterion(outputs, labels)
+
+                    if phase == 'train':
+                        optimizer_cross.zero_grad()
+                        loss.backward()
+                        optimizer_cross.step()
+                            
+                    running_loss += loss.item()
+                    logits       = torch.nn.Softmax(dim=1)(outputs)
+
+                    predicted = logits.max(1).indices
+                    Y.extend(labels.cpu().numpy())
+                    Y_pred.extend(predicted.cpu().numpy())
+
+                    if phase == 'test':
+                        epoch_val_loss = running_loss / len(audio_dataloaders[phase].dataset)
+                        PK_props.extend(logits[:, 1].cpu().numpy())
+                        C_props.extend(logits[:, 0].cpu().numpy())
+                        Samples.extend(audio_data['patient_id'])
+                        exercises.extend(audio_data['exercise'])
+                        repetitions.extend(audio_data['repetition'])
+                        scheduler.step(epoch_val_loss)
+                        early_stopping(epoch_val_loss)
+                        current_lr = optimizer_cross.param_groups[0]['lr']
+                        lr_history.append(current_lr)
+                        val_loss_history.append(epoch_val_loss)
+                        #print(f'Epoch {epoch+1}: val_loss = {epoch_loss:.4f}, lr = {current_lr:.6f}')
+                        if early_stopping.early_stop:                
+                            print("Early stopping triggered.")
+                            break
+                    running_acc = accuracy_score(Y, Y_pred)
+                    stream.set_description('Epoch {}/{}-{}-loss:{:.4f}-acc:{:.4f}'.format(epoch+1, num_epochs, phase, running_loss/(index+1), running_acc))
+                    stream.update()
+
+        if early_stopping.early_stop:
+            break      
+
+    # Guardar los pesos del cross_model al finalizar el entrenamiento
+    torch.save(cross_model.state_dict(), f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models/AudioVideoPhonemes/{patient}.pth')
+    
+    return Y, Y_pred, PK_props, C_props, Samples, exercises, repetitions, val_loss_history, lr_history
+
+def train_model_CE_VIDEO_ATENCION_ALEJANDRA(model, num_epochs, dataloaders, modality, lr, patient_id, exercise):
+
+    criterion = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    #accuracy  = Accuracy(task='BINARY').cuda()
+
+    for epoch in range(num_epochs):
+        for phase in dataloaders.keys():
+            if phase == 'train':
+                model.train()
+            else:
+                model.eval()
+
+            running_loss = 0.0
+            running_acc  = 0.0
+
+            Y      = []
+            Y_pred = []
+            PK_props = []
+            C_props = []
+            Samples = []
+            exercises = []
+            repetitions = []
+
+            stream = tqdm(total=len(dataloaders[phase]), desc = 'Epoch {}/{}-{}-loss:{:.4f}-acc:{:.4f}'.format(epoch+1, num_epochs, phase, running_loss, running_acc))
+
+            with stream as pbar:
+
+                for index, data in enumerate(dataloaders[phase]):
+                    
+                    img        = data[modality].type(torch.float).cuda()
+                    labels     = data['label'].cuda()
+                    sample     = data['patient_id']
+                    repetition = data['repetition']
+                    exercise   = data['exercise']
+
+                    outputs     = model(img)
+                    loss        = criterion(outputs, labels)
+
+                    if phase == 'train':
+                        optimizer.zero_grad()
+                        loss.backward()
+                        optimizer.step()
+                        
+                    running_loss += loss.item()
+                    logits       = torch.nn.Softmax(dim=1)(outputs)
+
+                    predicted = logits.max(1).indices
+                    Y_pred    += list(predicted.cpu().detach().numpy())
+                    Y         += list(labels.cpu().detach().numpy())
+
+                    if phase == 'test':
+                        PK_props  += list(logits.cpu().detach().numpy()[:,1])
+                        C_props   += list(logits.cpu().detach().numpy()[:,0])
+                        Samples   += sample
+                        exercises += exercise
+                        repetitions += repetition
+
+                        #if epoch + 1 == num_epochs:
+                            #activations_first = model.get_embs_first(img)
+                            #activations_last = model.get_embs_last(img)
+                            #save_activations(activations_first, sample, exercise, repetition, 'first')
+                            #save_activations(activations_last, sample, exercise, repetition, 'last')
+
+                    total_samples = index + 1
+                    running_acc = accuracy_score(Y, Y_pred)
+                    stream.desc = 'Epoch {}/{}-{}-loss:{:.4f}-acc:{:.4f}'.format(epoch+1, num_epochs, phase, running_loss/total_samples, running_acc)
+
+                    pbar.update(1)
+    # Guarda los pesos después de entrenar todas las épocas para un paciente
+    #torch.save(model.state_dict(), f'./Models/VideoWords/{patient_id}.pth')
+    return model, Y, Y_pred, PK_props, C_props, Samples, exercises, repetitions
 
 
 def load_weights_for_patient(model, base_path, patient_id):
@@ -977,3 +1166,27 @@ def train_model_CE_AUDIO(model, num_epochs, dataloaders, modality, lr, patient_i
     torch.save(model.state_dict(), f'./Models/AudioWords/{patient_id}.pth')    
 
     return model, Y, Y_pred, PK_props, C_props, Samples, exercises, repetitions
+
+class EarlyStopping:
+    def __init__(self, patience=30, verbose=False, delta=0):
+        self.patience = patience
+        self.verbose = verbose
+        self.delta = delta
+        self.best_score = None
+        self.early_stop = False
+        self.counter = 0
+
+    def __call__(self, val_loss):
+        score = -val_loss
+
+        if self.best_score is None:
+            self.best_score = score
+        elif score < self.best_score + self.delta:
+            self.counter += 1
+            if self.verbose:
+                print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
+            if self.counter >= self.patience:
+                self.early_stop = True
+        else:
+            self.best_score = score
+            self.counter = 0

@@ -48,7 +48,7 @@ if __name__== "__main__":
     exercise    = 'Phonemes'
     path_data   = '/home/arumota_pupils/Jose/Dataset/AudioVisualData_v7'
     #path_data   = '/data/franklin_pupils/Jose/Dataset/AudioVisualData_v7'
-    note        = 'AtenciónAlejandraNoRFB_atenciónEmbebidos_AUDIO2D_VIDEO3D_PesosGuardados:weights' 
+    note        = 'AtenciónAlejandra_VIDEO3D:weights' 
     s_duration  = False
 
     #-------------------------------------------------------------------
@@ -95,18 +95,16 @@ if __name__== "__main__":
     
     for patient in patients:
         
-        #audios_Train, audios_Test, videos_Train, videos_Test, duration_audio, duration_video = generate_train_and_test_sets(path_base   = path_data, 
-        #                                                                                  patient_val = [patient],
-        #                                                                                  exercise_s  = exercise, 
-        #                                                                                  duration    = False)   
-        audios_Train, audios_Test, _, _, duration_audio, _ = generate_train_and_test_sets(path_base   = path_data, 
+        """
+        _, _, videos_Train, videos_Test, _, duration_video = generate_train_and_test_sets(path_base   = path_data, 
                                                                                           patient_val = [patient],
                                                                                           exercise_s  = exercise, 
-                                                                                          duration    = False)         
+                                                                                          duration    = False)        
+        """
         print("==========================================================================================")
-        print("Validating Patient {}: Video Duration Frames:{} Audio Duration Frames:{}".format(patient, duration_video,duration_audio))
-   
+        print("Validating Patient {}: Duration Frames:{}".format(patient, duration_video))
 
+        
         videos_train        = {idx: videos[idx] for idx in videos.keys() if idx!=patient}
         labels_train        = {idx: labels[idx] for idx in labels.keys() if idx!=patient}
         samples_type_train  = {idx: samples_type[idx] for idx in samples_type.keys() if idx!=patient}
@@ -117,30 +115,11 @@ if __name__== "__main__":
         labels_test        = {patient:labels[patient]}
         samples_type_test  = {patient:samples_type[patient]}
         exercises_s_test   = {patient:exercises_s[patient]}
-        repetitions_s_test = {patient:repetitions_s[patient]}        
-
-        """
-        #----------------------------------------------------------------
-        # Generate 2D data to train and validate the model
-        #----------------------------------------------------------------
-        transformations = transforms.Compose([To_Tensor_video_2D()])
-        train_data      = VisualDataset2D(names_videos   = videos_Train,
-                                          duration       = duration_video,
-                                          transform      = transformations)
-        test_data       = VisualDataset2D(names_videos   = videos_Test,
-                                          duration       = duration_video,
-                                          transform      = transformations)
-
-        print('Training samples: {}'.format(train_data.__len__()))
-        print('Test samples: {}'.format(test_data.__len__()))
-
-        video_train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=0)
-        video_test_loader  = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=0)        
-        """
-
+        repetitions_s_test = {patient:repetitions_s[patient]}
         
+
         #----------------------------------------------------------------
-        # Generate 3D video data to train
+        # Generate 3D data to train and validate the model
         #----------------------------------------------------------------
         transformations = transforms.Compose([To_Tensor_video()])
         train_data      = VisualDataset_v2(videos        = videos_train,
@@ -157,52 +136,40 @@ if __name__== "__main__":
                                            repetitions_s = repetitions_s_test,
                                            transform     = transformations)
 
-        print('Video Training samples: {}'.format(train_data.__len__()))
-        print('Video Test samples: {}'.format(test_data.__len__()))
+        print('Training samples: {}'.format(train_data.__len__()))
+        print('Test samples: {}'.format(test_data.__len__()))
 
-        video_train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=0)
-        video_test_loader  = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=0)   
-
-        
+        train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=0)
+        test_loader  = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=0)
+        """
+       
         #----------------------------------------------------------------
-        # Generate audio data to train 
+        # Generate 2D data to train and validate the model
         #----------------------------------------------------------------
-        transformations = transforms.Compose([To_Tensor_audio()])
-        train_data      = AudioDataset(names_audios  = audios_Train,
-                                        duration     = duration_audio,
-                                        transform    = transformations)
-        test_data       = AudioDataset(names_audios  = audios_Test,
-                                        duration     = duration_audio,
-                                        transform    = transformations)
+        transformations = transforms.Compose([To_Tensor_video_2D()])
+        train_data      = VisualDataset2D(names_videos   = videos_Train,
+                                          duration       = duration_video,
+                                          transform      = transformations)
+        test_data       = VisualDataset2D(names_videos   = videos_Test,
+                                          duration       = duration_video,
+                                          transform      = transformations)
 
-        print('Audio Training samples: {}'.format(train_data.__len__()))
-        print('Audio Test samples: {}'.format(test_data.__len__()))
+        print('Training samples: {}'.format(train_data.__len__()))
+        print('Test samples: {}'.format(test_data.__len__()))
 
-        audio_train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=0)
-        audio_test_loader  = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=0)   
-        
-        
+        train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=0)
+        test_loader  = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=0)
+        """
         #----------------------------------------------------------------
         # Load both networks
         #----------------------------------------------------------------
         #video_model = CNNModel2D()
-        video_model = CNNModel3D() #Video
-        video_model.to(device)
-        #print(video_model.conv_layer2)
-
-        audio_model = CNNModel2D() #Audio
-        audio_model.to(device)     
-        
-        # Congelar los pesos del modelo de audio
-        for param in audio_model.parameters():
-            param.requires_grad = False
-        
-        # Congelar los pesos del modelo de video
-        for param in video_model.parameters():
-            param.requires_grad = False        
+        model = RFBMultiHAttnNetwork_V3() #Video
+        model.to(device)
+        #print(video_model.conv_layer2) 
                 
-        video_dataloaders = {"train":video_train_loader, "test":video_test_loader}
-        audio_dataloaders = {"train":audio_train_loader, "test":audio_test_loader}
+        dataloaders = {"train":train_loader, "test":test_loader}
+        #audio_dataloaders = {"train":audio_train_loader, "test":audio_test_loader}
 
         """
         _, _, _, _, _, _, _, _, features_audio = train_model_CE_AUDIO_get_layer(model       = audio_model,
@@ -218,29 +185,15 @@ if __name__== "__main__":
                                                        modality    = 'video',
                                                        lr          = lr)  
         """
-        Y_true, Y_pred, PK_props, C_props, sample_ids, exercises, repetitions, val_loss, lr_history = train_model_CE_AUDIO_VIDEO_WEIGHTS_PRUEBA_ALEJANDRA(
-                                                        audio_model       = audio_model,
-                                                        video_model       = video_model,  
-                                                        num_epochs  = epoch,
-                                                        audio_dataloaders = audio_dataloaders,
-                                                        video_dataloaders = video_dataloaders,
-                                                        audio_modality   =  'audio',
-                                                        video_modality    = 'video',
-                                                        lr          = lr,
-                                                        device = device,
-                                                        patient = patient) 
+        model, Y_true, Y_pred, PK_props, C_props, sample_ids, exercises, repetitions = train_model_CE_VIDEO_ATENCION_ALEJANDRA(
+                                                                                        model       = model,
+                                                                                        num_epochs  = epoch,
+                                                                                        dataloaders = dataloaders,
+                                                                                        modality    = 'video',
+                                                                                        lr          = lr,
+                                                                                        patient_id=patient,
+                                                                                        exercise=exercise) 
 
-        # Plotting the validation loss against learning rate
-        plt.figure(figsize=(10, 5))
-        plt.plot(lr_history, val_loss, marker='o')
-        plt.xscale('log')
-        plt.xlabel('Learning Rate')
-        plt.ylabel('Validation Loss')
-        plt.title('Validation Loss as a Function of Learning Rate')
-        plt.grid(True)
-        plt.show()
-        plt.savefig(f'Images/validation_loss_plot_{patient}.png')  # Save to file  
-        plt.close()  # Close the plot frame to free resources
         
         Y_true_g        += Y_true
         Y_pred_g        += Y_pred
