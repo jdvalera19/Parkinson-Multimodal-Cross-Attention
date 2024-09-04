@@ -188,10 +188,13 @@ class RFBMultiHeadAttn_V1(nn.Module):
 
         self.rearrange_for_matmul = Rearrange(
             #"b (d nh) h w  -> b nh d h w", nh=num_multiheads
-            "b (nh d) h w  -> b nh d h w", nh=num_multiheads
+            #"b (nh d) h w  -> b nh d h w", nh=num_multiheads
+            "b (nh c) d h w  -> b nh c d h w", nh=num_multiheads
         )
-        self.rearrange_back = Rearrange("b nh d h w -> b (nh d) h w")
-        self.rearrange_for = Rearrange("nh b d h w -> b (nh d) h w")
+        #self.rearrange_back = Rearrange("b nh d h w -> b (nh d) h w")
+        self.rearrange_back = Rearrange("b nh c d h w -> b (c nh) d h w")
+        #self.rearrange_for = Rearrange("nh b d h w -> b (nh d) h w")
+        self.rearrange_for = Rearrange("nh b c d h w -> b (c nh) d h w")
         self.gamma_one = nn.Parameter(T.zeros(1))
         self.gamma_two = nn.Parameter(T.zeros(1))
         self.gamma_thr = nn.Parameter(T.zeros(1))
@@ -208,17 +211,21 @@ class RFBMultiHeadAttn_V1(nn.Module):
         """
         #x = x.reshape(5, 8, 4, 4)  
         #It is important to obtain a size of the input
-        x = x.view(x.size(0), x.size(1)*x.size(2), x.size(3), x.size(4))
-        m_batchsize, C, width, height = x.size()
+        #x = x.view(x.size(0), x.size(1)*x.size(2), x.size(3), x.size(4))
+        #m_batchsize, C, width, height = x.size()
+        m_batchsize, C, dim, width, height = x.size()
 
         #Now, we're gonna obtain an attention for each one 
-        proj_qkv = self.qkv_rfb(x).view(m_batchsize, -1, width,  height)
+        #proj_qkv = self.qkv_rfb(x).view(m_batchsize, -1, width,  height)
+        proj_qkv = self.qkv_rfb(x).view(m_batchsize, -1, dim, width, height)
+
         #print("proj_qkv", proj_qkv.shape)
         proj_qkv_rearranged = self.rearrange_for_matmul(proj_qkv)
         #print(proj_qkv_rearranged.shape)
         q, k, v = proj_qkv_rearranged.chunk(chunks=3, dim=2)
 
-        sim = (k @ q.permute(0, 1, 2, 4, 3))
+        #sim = (k @ q.permute(0, 1, 2, 4, 3))
+        sim = (k @ q.permute(0, 1, 2, 3, 5, 4))
         att_map = self.softmax(sim)  # BX (N) X (N)
         proj_v = att_map @ v
         
@@ -420,6 +427,40 @@ class CrossAttentionEmbedding(nn.Module):
         att_output = torch.matmul(att_map, proj_v)  # [batch_size, hidden_dim]
 
         return att_output
+    
+
+class SimpleCrossAttention(nn.Module):
+    def __init__(self, dim_input, dim_query, dim_key, dim_value):
+        super(SimpleCrossAttention, self).__init__()
+        # Inicialización de las capas lineales para cada uno de los componentes Q, K, V
+        self.query_layer = nn.Linear(dim_input, dim_query)
+        self.key_layer = nn.Linear(dim_input, dim_key)
+        self.value_layer = nn.Linear(dim_input, dim_value)
+        self.classifier = nn.Linear(dim_value, 2)
+
+    def forward(self, x_query, x_key, x_value):
+        """
+        x_query, x_key, x_value: Tensors de entrada de tamaño (batch_size, dim_input)
+        """
+        # Generar Q, K, V aplicando las capas lineales correspondientes
+        query = self.query_layer(x_query)
+        key = self.key_layer(x_key)
+        value = self.value_layer(x_value)
+
+        # Calcular el producto punto entre query y key
+        scores = torch.matmul(query, key.transpose(-2, -1)) / (key.size(-1) ** 0.5)
+
+        # Aplicar Softmax para obtener los pesos de atención
+        attn_weights = F.softmax(scores, dim=-1)
+
+        # Multiplicar los pesos de atención con el value
+        output = torch.matmul(attn_weights, value)
+
+        logits = self.classifier(output)
+
+        return logits  # Retornar también los pesos de atención para visualización o análisis
+        
+
 
 class RFBMultiHAttnNetwork_V4(nn.Module):
     def __init__(self, query_dim, context_dim, filters_head):
