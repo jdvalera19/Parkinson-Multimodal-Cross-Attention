@@ -11,6 +11,8 @@ from skimage.transform import resize
 from torch.utils.data  import Dataset
 from scipy             import signal
 from tqdm              import tqdm
+import torchaudio.transforms as audio_transforms
+from torchvision import transforms
 
 #----------------------------------------------------------------------
 # Transform the numpy data in torch data
@@ -590,3 +592,49 @@ class AudioDataset(Dataset):
             sample = self.transform(sample)
  
         return sample
+    
+
+
+class AdditiveGaussianNoise:
+    def __init__(self, mean=0.0, std=0.005):
+        self.mean = mean
+        self.std = std
+    
+    def __call__(self, sample):
+        # Acceder al tensor de audio en el diccionario
+        tensor = sample['audio']
+        if isinstance(tensor, torch.Tensor):
+            noise = torch.randn(tensor.size()) * self.std + self.mean
+            sample['audio'] = tensor + noise
+        return sample  
+    
+class ApplyAudioTransforms:
+    def __init__(self):
+        self.freq_mask = audio_transforms.FrequencyMasking(freq_mask_param=15)
+        self.time_mask = audio_transforms.TimeMasking(time_mask_param=20)
+
+    def __call__(self, sample):
+        # Aplicar las transformaciones al tensor de audio en el diccionario
+        audio_tensor = sample['audio']
+        if isinstance(audio_tensor, torch.Tensor):
+            audio_tensor = self.freq_mask(audio_tensor)
+            audio_tensor = self.time_mask(audio_tensor)
+            sample['audio'] = audio_tensor
+        return sample   
+
+class ApplyVideoTransforms:
+    def __init__(self):
+        self.transforms = transforms.Compose([
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomRotation(degrees=5),
+            transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+            #transforms.RandomResizedCrop(size=(224, 224), scale=(0.8, 1.0))
+        ])
+
+    def __call__(self, sample):
+        # Aplicar las transformaciones solo al tensor de video
+        video_tensor = sample['video']
+        if isinstance(video_tensor, torch.Tensor):
+            video_tensor = self.transforms(video_tensor)
+            sample['video'] = video_tensor
+        return sample     
