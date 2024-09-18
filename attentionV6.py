@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 
 import pandas as pd
 
-from torchvision      import transforms
+from torchvision import transforms
+import torchaudio.transforms as audio_transforms
 from torch.utils.data import DataLoader
 
 #Custom librarian
@@ -42,13 +43,14 @@ if __name__== "__main__":
     #-------------------------------------------------------------------
     # Define the model parameters
     #-------------------------------------------------------------------
-    lr          = 0.0000001
+    lr          = 0.000001
     epoch       = 50
     batch_size  = 5
     exercise    = 'Phonemes'
     path_data   = '/home/arumota_pupils/Jose/Dataset/AudioVisualData_v7'
     #path_data   = '/data/franklin_pupils/Jose/Dataset/AudioVisualData_v7'
-    note        = 'AtenciónAlejandraNoRFB_atenciónEmbebidos_AUDIO2D_VIDEO3D_PesosGuardados:weights' 
+    #note        = 'DataAugmentation_SingleCabezaAtenciónSimpleDrop0.5_atenciónEmbebidos_AUDIO2D_VIDEO3D_PesosGuardados:weights' 
+    note        = 'PruebaAlejandraBCE_AUDIO2D_VIDEO3D_PesosGuardados:weights' 
     s_duration  = False
 
     #-------------------------------------------------------------------
@@ -138,6 +140,13 @@ if __name__== "__main__":
         video_test_loader  = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=0)        
         """
 
+        #----------------------------------------------------------------
+        # Generate Video Data Augmentation
+        #----------------------------------------------------------------
+        video_transformations = transforms.Compose([
+        ApplyVideoTransforms(),  # Aplicar transformaciones al video
+        To_Tensor_video()  # Pasar a tensor
+        ])
         
         #----------------------------------------------------------------
         # Generate 3D video data to train
@@ -148,7 +157,7 @@ if __name__== "__main__":
                                            samples_type  = samples_type_train, 
                                            exercises_s   = exercises_s_train, 
                                            repetitions_s = repetitions_s_train,
-                                           transform     = transformations)
+                                           transform     = video_transformations)
         
         test_data       = VisualDataset_v2(videos        = videos_test,
                                            labels        = labels_test,
@@ -163,14 +172,22 @@ if __name__== "__main__":
         video_train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=0)
         video_test_loader  = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=0)   
 
-        
+        #----------------------------------------------------------------
+        # Generate Audio Data Augmentation
+        #----------------------------------------------------------------
+        audio_transformations = transforms.Compose([
+            AdditiveGaussianNoise(mean=0.0, std=0.005),  # Añadir ruido
+            #ApplyAudioTransforms(),  # Aplicar enmascarado de frecuencia y tiempo
+            To_Tensor_audio()  # Pasar a tensor
+        ])        
+
         #----------------------------------------------------------------
         # Generate audio data to train 
         #----------------------------------------------------------------
         transformations = transforms.Compose([To_Tensor_audio()])
         train_data      = AudioDataset(names_audios  = audios_Train,
                                         duration     = duration_audio,
-                                        transform    = transformations)
+                                        transform    = audio_transformations)
         test_data       = AudioDataset(names_audios  = audios_Test,
                                         duration     = duration_audio,
                                         transform    = transformations)
@@ -192,14 +209,7 @@ if __name__== "__main__":
 
         audio_model = CNNModel2D() #Audio
         audio_model.to(device)     
-        
-        # Congelar los pesos del modelo de audio
-        for param in audio_model.parameters():
-            param.requires_grad = False
-        
-        # Congelar los pesos del modelo de video
-        for param in video_model.parameters():
-            param.requires_grad = False        
+          
                 
         video_dataloaders = {"train":video_train_loader, "test":video_test_loader}
         audio_dataloaders = {"train":audio_train_loader, "test":audio_test_loader}
@@ -218,7 +228,7 @@ if __name__== "__main__":
                                                        modality    = 'video',
                                                        lr          = lr)  
         """
-        Y_true, Y_pred, PK_props, C_props, sample_ids, exercises, repetitions, val_loss, lr_history = train_model_CE_AUDIO_VIDEO_WEIGHTS_PRUEBA_ALEJANDRA(
+        Y_true, Y_pred, PK_props, C_props, sample_ids, exercises, repetitions = train_model_CE_AUDIO_VIDEO_WEIGHTS(
                                                         audio_model       = audio_model,
                                                         video_model       = video_model,  
                                                         num_epochs  = epoch,
@@ -231,16 +241,16 @@ if __name__== "__main__":
                                                         patient = patient) 
 
         # Plotting the validation loss against learning rate
-        plt.figure(figsize=(10, 5))
-        plt.plot(lr_history, val_loss, marker='o')
-        plt.xscale('log')
-        plt.xlabel('Learning Rate')
-        plt.ylabel('Validation Loss')
-        plt.title('Validation Loss as a Function of Learning Rate')
-        plt.grid(True)
-        plt.show()
-        plt.savefig(f'Images/validation_loss_plot_{patient}.png')  # Save to file  
-        plt.close()  # Close the plot frame to free resources
+        #plt.figure(figsize=(10, 5))
+        #plt.plot(lr_history, val_loss, marker='o')
+        #plt.xscale('log')
+        #plt.xlabel('Learning Rate')
+        #plt.ylabel('Validation Loss')
+        #plt.title('Validation Loss as a Function of Learning Rate')
+        #plt.grid(True)
+        #plt.show()
+        #plt.savefig(f'Images/validation_loss_plot_{patient}.png')  # Save to file  
+        #plt.close()  # Close the plot frame to free resources
         
         Y_true_g        += Y_true
         Y_pred_g        += Y_pred
@@ -251,7 +261,7 @@ if __name__== "__main__":
         repetitions_g   += repetitions
 
 
-    dataframe_of_results_name = 'Results_v2/Note:{}-Lr:{}-Epoch:{}-Exercise:{}-duration_size:{}.csv'.format(note, lr, epoch, exercise, s_duration)
+    dataframe_of_results_name = 'Results_v2/DataAugmentation/Note:{}-Lr:{}-Epoch:{}-Exercise:{}-duration_size:{}.csv'.format(note, lr, epoch, exercise, s_duration)
 
     data_frame_of_results = pd.DataFrame({'Y_true'       : Y_true_g,
                                           'Y_pred'       : Y_pred_g,
@@ -263,7 +273,7 @@ if __name__== "__main__":
 
     data_frame_of_results.to_csv(dataframe_of_results_name)
 
-    view_results(dataframe_of_results_name)
+    view_results_2(dataframe_of_results_name)
         
 
         

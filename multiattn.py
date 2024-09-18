@@ -436,30 +436,78 @@ class SimpleCrossAttention(nn.Module):
         self.query_layer = nn.Linear(dim_input, dim_query)
         self.key_layer = nn.Linear(dim_input, dim_key)
         self.value_layer = nn.Linear(dim_input, dim_value)
-        self.classifier = nn.Linear(dim_value, 2)
+        self.classifier = nn.Linear(dim_input, 2)
+        self.batch=nn.BatchNorm1d(128)
+        self.dropout = nn.Dropout(0.5)
 
-    def forward(self, x_query, x_key, x_value):
+    def forward(self, input1, input2):
         """
-        x_query, x_key, x_value: Tensors de entrada de tamaño (batch_size, dim_input)
+        query, key, value: Tensors de entrada de tamaño (batch_size, dim_input)
         """
         # Generar Q, K, V aplicando las capas lineales correspondientes
-        query = self.query_layer(x_query)
-        key = self.key_layer(x_key)
-        value = self.value_layer(x_value)
+        query = self.query_layer(input1)
+        key = self.key_layer(input2)
+        value = self.value_layer(input2)
+
 
         # Calcular el producto punto entre query y key
-        scores = torch.matmul(query, key.transpose(-2, -1)) / (key.size(-1) ** 0.5)
+        scores = torch.matmul(query, key.transpose(-2, -1)) / (key.size(-1) ** 0.5) #Averiguar otras maneras: suma, etc
 
         # Aplicar Softmax para obtener los pesos de atención
         attn_weights = F.softmax(scores, dim=-1)
 
+
         # Multiplicar los pesos de atención con el value
         output = torch.matmul(attn_weights, value)
+        
+        output = self.batch(output)
+        output = self.dropout(output)
 
         logits = self.classifier(output)
+        #Aplicar una softmax si tiene dos neuronas, si no una signmoide.
 
-        return logits  # Retornar también los pesos de atención para visualización o análisis
+        return logits, attn_weights  # Retornar también los pesos de atención para visualización o análisis
         
+class MultiHeadAttention(nn.Module):
+    def __init__(self, num_heads, model_dim, num_classes):
+        super(MultiHeadAttention, self).__init__()
+        self.num_heads = num_heads
+        self.model_dim = model_dim
+        self.depth = model_dim // num_heads
+        self.Wq = nn.Linear(model_dim, model_dim)
+        self.Wk = nn.Linear(model_dim, model_dim)
+        self.Wv = nn.Linear(model_dim, model_dim)
+        self.dense = nn.Linear(model_dim, num_classes)
+        self.batch=nn.BatchNorm1d(128)
+        # Inicializar los pesos después de definir los módulos
+        self.apply(self._init_weights)
+
+    def split_heads(self, x, batch_size):
+        x = x.view(batch_size, -1, self.num_heads, self.depth)
+        return x.permute(0, 2, 1, 3)
+
+    def _init_weights(self, module):
+        """Inicializa los pesos del modelo."""
+        if isinstance(module, nn.Linear):
+            nn.init.kaiming_uniform_(module.weight, nonlinearity='relu')
+            if module.bias is not None:
+                nn.init.constant_(module.bias, 0)
+    
+    def forward(self, input1, input2):
+        batch_size = input1.size(0)
+        q = self.split_heads(self.Wq(input1), batch_size)
+        k = self.split_heads(self.Wk(input2), batch_size)
+        v = self.split_heads(self.Wv(input2), batch_size)
+
+        scaled_attention_logits = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.depth)
+        attention_weights = F.dropout(F.softmax(scaled_attention_logits, dim=-1), p=0.5, training=self.training)
+        output = torch.matmul(attention_weights, v)
+        output = output.permute(0, 2, 1, 3)
+        output = output.view(batch_size, -1)
+        output = self.batch(output)
+        output = self.dense(output)
+        output = torch.sigmoid(output)
+        return output, attention_weights
 
 
 class RFBMultiHAttnNetwork_V4(nn.Module):

@@ -508,24 +508,37 @@ def adapt_state_dict(loaded_state_dict):
     return new_state_dict
 
 def train_model_CE_AUDIO_VIDEO_WEIGHTS(audio_model, video_model, num_epochs, audio_dataloaders, video_dataloaders, audio_modality, video_modality, lr, device, patient):
-    criterion = torch.nn.CrossEntropyLoss()
+    #criterion = torch.nn.CrossEntropyLoss()
+    #criterion = torch.nn.BCEWithLogitsLoss() #PROBANDO ALEJANDRA
+    criterion = torch.nn.BCELoss() #PROBANDO ALEJANDRA
     # Cargar los pesos para cada paciente específico
     audio_weight_path = f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models/AudioPhonemes/{patient}.pth'
     video_weight_path = f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models/VideoPhonemes/{patient}.pth'
     video_model.load_state_dict(torch.load(video_weight_path))
     audio_model.load_state_dict(torch.load(audio_weight_path))
+
+    # Congelar los pesos del modelo de audio
+    for param in audio_model.parameters():
+        param.requires_grad = False
+        
+    # Congelar los pesos del modelo de video
+    for param in video_model.parameters():
+        param.requires_grad = False      
+
     audio_model.eval()
     video_model.eval()
 
     # Inicializar el modelo de atención
     #cross_model = RFBMultiHeadAttn_V2(in_dim_q=128, in_dim_kv=128, filters_head=2, num_multiheads=2, num_classes=2)
-    cross_model = RFBMultiHeadAttn_V1(in_dim=8, filters_head=8, num_multiheads=2)
+    #cross_model = SimpleCrossAttention(dim_input=128, dim_query=128, dim_key=128, dim_value=128)
+    cross_model = MultiHeadAttention(num_heads=4, model_dim=128, num_classes=1)
     cross_model.to(device)
     optimizer_cross = torch.optim.Adam(cross_model.parameters(), lr=lr)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer_cross, mode='min', factor=0.1, patience=5)
-    early_stopping = EarlyStopping(patience=40, verbose=False, delta=0.01)
-    lr_history = []  # To store learning rate
-    val_loss_history = []  # To store validation losses
+    #optimizer_cross = torch.optim.Adam(cross_model.parameters(), lr=lr, weight_decay=1e-5)
+    #scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer_cross, mode='min', factor=0.1, patience=5)
+    #early_stopping = EarlyStopping(patience=40, verbose=False, delta=0.01)
+    #lr_history = []  # To store learning rate
+    #val_loss_history = []  # To store validation losses
     #if audio_model.training and video_model.training == True:
     #    audio_model.eval()
     #    video_model.eval()
@@ -555,14 +568,16 @@ def train_model_CE_AUDIO_VIDEO_WEIGHTS(audio_model, video_model, num_epochs, aud
                         
                     img_audio        = audio_data[audio_modality].type(torch.float).cuda()
                     img_video        = video_data[video_modality].type(torch.float).cuda()                    
-                    labels     = audio_data['label'].cuda()
+                    #labels     = audio_data['label'].cuda()
+                    labels = audio_data['label'].type(torch.float).cuda() #PROBANDO ALEJANDRA
 
-                        
-                    embedding_audio = audio_model(img_audio, return_embedding=True) #Embebido de audio
-                    embedding_video = video_model(img_video, return_embedding=True) #Embebido de video
-                    #outputs = cross_model(embedding_audio, embedding_video)
-                    outputs = cross_model(embedding_video)
-                    loss        = criterion(outputs, labels)
+                    with torch.no_grad():    
+                        embedding_audio = audio_model(img_audio, return_embedding=True) #Embebido de audio
+                        embedding_video = video_model(img_video, return_embedding=True) #Embebido de video
+                    outputs, attention_weights  = cross_model(embedding_audio,embedding_video)
+                    attention_weights = attention_weights.detach().cpu().numpy()
+                    #loss        = criterion(outputs, labels)
+                    loss        = criterion(outputs.squeeze(), labels) #PROBANDO ALEJANDRA
 
                     if phase == 'train':
                         optimizer_cross.zero_grad()
@@ -570,39 +585,44 @@ def train_model_CE_AUDIO_VIDEO_WEIGHTS(audio_model, video_model, num_epochs, aud
                         optimizer_cross.step()
                             
                     running_loss += loss.item()
-                    logits       = torch.nn.Softmax(dim=1)(outputs)
+                    #logits       = torch.nn.Softmax(dim=1)(outputs)
 
-                    predicted = logits.max(1).indices
+                    predicted = (outputs > 0.5).float() #PROBANDO ALEJANDRA
+                    #predicted = logits.max(1).indices
                     Y.extend(labels.cpu().numpy())
                     Y_pred.extend(predicted.cpu().numpy())
 
                     if phase == 'test':
-                        epoch_val_loss = running_loss / len(audio_dataloaders[phase].dataset)
-                        PK_props.extend(logits[:, 1].cpu().numpy())
-                        C_props.extend(logits[:, 0].cpu().numpy())
+                        #epoch_val_loss = running_loss / len(audio_dataloaders[phase].dataset)
+                        #PK_props.extend(logits[:, 1].cpu().numpy())
+                        PK_props.extend(predicted.cpu().numpy())  #PROBANDO ALEJANDRA
+                        #C_props.extend(logits[:, 0].cpu().numpy())
+                        C_props.extend(predicted.cpu().numpy()) #PROBANDO ALEJANDRA
                         Samples.extend(audio_data['patient_id'])
                         exercises.extend(audio_data['exercise'])
                         repetitions.extend(audio_data['repetition'])
-                        scheduler.step(epoch_val_loss)
-                        early_stopping(epoch_val_loss)
-                        current_lr = optimizer_cross.param_groups[0]['lr']
-                        lr_history.append(current_lr)
-                        val_loss_history.append(epoch_val_loss)
+                        #scheduler.step(epoch_val_loss)
+                        #early_stopping(epoch_val_loss)
+                        #current_lr = optimizer_cross.param_groups[0]['lr']
+                        #lr_history.append(current_lr)
+                        #val_loss_history.append(epoch_val_loss)
                         #print(f'Epoch {epoch+1}: val_loss = {epoch_loss:.4f}, lr = {current_lr:.6f}')
-                        if early_stopping.early_stop:                
-                            print("Early stopping triggered.")
-                            break
+                        #if early_stopping.early_stop:                
+                        #    print("Early stopping triggered.")
+                        #    break
                     running_acc = accuracy_score(Y, Y_pred)
                     stream.set_description('Epoch {}/{}-{}-loss:{:.4f}-acc:{:.4f}'.format(epoch+1, num_epochs, phase, running_loss/(index+1), running_acc))
                     stream.update()
 
-        if early_stopping.early_stop:
-            break      
+#        if early_stopping.early_stop:
+#            break      
 
     # Guardar los pesos del cross_model al finalizar el entrenamiento
-    torch.save(cross_model.state_dict(), f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models/AudioVideoPhonemes/{patient}.pth')
+    torch.save(cross_model.state_dict(), f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models/DataAugmentation/PruebaBCEAlejandra/{patient}.pth')
+    #Guardar los pesos de atención al finalizar el entrenamiento
+    np.save(f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models/DataAugmentation/AtencionPruebaBCEAlejandra/PesosAtención_{patient}.npy', attention_weights)
     
-    return Y, Y_pred, PK_props, C_props, Samples, exercises, repetitions, val_loss_history, lr_history
+    return Y, Y_pred, PK_props, C_props, Samples, exercises, repetitions
 
 def train_model_CE_AUDIO_VIDEO_WEIGHTS_PRUEBA_ALEJANDRA(video_model, num_epochs, audio_dataloaders, video_dataloaders, audio_modality, video_modality, lr, device, patient):
     criterion = torch.nn.CrossEntropyLoss()
@@ -681,21 +701,21 @@ def train_model_CE_AUDIO_VIDEO_WEIGHTS_PRUEBA_ALEJANDRA(video_model, num_epochs,
                         Samples.extend(audio_data['patient_id'])
                         exercises.extend(audio_data['exercise'])
                         repetitions.extend(audio_data['repetition'])
-                        scheduler.step(epoch_val_loss)
-                        early_stopping(epoch_val_loss)
-                        current_lr = optimizer_cross.param_groups[0]['lr']
-                        lr_history.append(current_lr)
-                        val_loss_history.append(epoch_val_loss)
+                        #scheduler.step(epoch_val_loss)
+                        #early_stopping(epoch_val_loss)
+                        #current_lr = optimizer_cross.param_groups[0]['lr']
+                        #lr_history.append(current_lr)
+                        #val_loss_history.append(epoch_val_loss)
                         #print(f'Epoch {epoch+1}: val_loss = {epoch_loss:.4f}, lr = {current_lr:.6f}')
-                        if early_stopping.early_stop:                
-                            print("Early stopping triggered.")
-                            break
+                        #if early_stopping.early_stop:                
+                        #    print("Early stopping triggered.")
+                        #    break
                     running_acc = accuracy_score(Y, Y_pred)
                     stream.set_description('Epoch {}/{}-{}-loss:{:.4f}-acc:{:.4f}'.format(epoch+1, num_epochs, phase, running_loss/(index+1), running_acc))
                     stream.update()
 
-        if early_stopping.early_stop:
-            break      
+        #if early_stopping.early_stop:
+            #break      
 
     # Guardar los pesos del cross_model al finalizar el entrenamiento
     torch.save(cross_model.state_dict(), f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models/AudioVideoPhonemes/{patient}.pth')
@@ -1097,7 +1117,7 @@ def train_model_CE(model, num_epochs, dataloaders, modality, lr, patient_id, exe
 
                     pbar.update(1)
     # Guarda los pesos después de entrenar todas las épocas para un paciente
-    torch.save(model.state_dict(), f'./Models/VideoWords/{patient_id}.pth')
+    #torch.save(model.state_dict(), f'./Models/VideoWords/{patient_id}.pth')
     return model, Y, Y_pred, PK_props, C_props, Samples, exercises, repetitions
 
 def train_model_CE_AUDIO(model, num_epochs, dataloaders, modality, lr, patient_id, exercise):
