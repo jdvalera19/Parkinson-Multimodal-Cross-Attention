@@ -508,12 +508,14 @@ def adapt_state_dict(loaded_state_dict):
     return new_state_dict
 
 def train_model_CE_AUDIO_VIDEO_WEIGHTS(audio_model, video_model, num_epochs, audio_dataloaders, video_dataloaders, audio_modality, video_modality, lr, device, patient):
-    #criterion = torch.nn.CrossEntropyLoss()
+    criterion = torch.nn.CrossEntropyLoss()
     #criterion = torch.nn.BCEWithLogitsLoss() #PROBANDO ALEJANDRA
-    criterion = torch.nn.BCELoss() #PROBANDO ALEJANDRA
+    #criterion = torch.nn.BCELoss() #PROBANDO ALEJANDRA
     # Cargar los pesos para cada paciente específico
-    audio_weight_path = f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models/AudioPhonemes/{patient}.pth'
-    video_weight_path = f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models/VideoPhonemes/{patient}.pth'
+    #audio_weight_path = f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models/AudioPhonemes/{patient}.pth'
+    audio_weight_path = f'/data/franklin_pupils/Jose/Codigo/audiovisualpk/Parkinson-Multimodal-Cross-Attention/Models/AudioVowels/{patient}.pth'
+    #video_weight_path = f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models/VideoPhonemes/{patient}.pth'
+    video_weight_path = f'/data/franklin_pupils/Jose/Codigo/audiovisualpk/Parkinson-Multimodal-Cross-Attention/Models/VideoVowels/{patient}.pth'
     video_model.load_state_dict(torch.load(video_weight_path))
     audio_model.load_state_dict(torch.load(audio_weight_path))
 
@@ -531,7 +533,9 @@ def train_model_CE_AUDIO_VIDEO_WEIGHTS(audio_model, video_model, num_epochs, aud
     # Inicializar el modelo de atención
     #cross_model = RFBMultiHeadAttn_V2(in_dim_q=128, in_dim_kv=128, filters_head=2, num_multiheads=2, num_classes=2)
     #cross_model = SimpleCrossAttention(dim_input=128, dim_query=128, dim_key=128, dim_value=128)
-    cross_model = MultiHeadAttention(num_heads=4, model_dim=128, num_classes=1)
+    #cross_model = MultiHeadAttention(num_heads=4, model_dim=128, num_classes=2)
+    cross_model = FinalMultiHeadAttention(dim_input=128, dim_query=128, dim_key=128, dim_value=128, num_heads=4)
+    #cross_model = CrossModalAttentionMultiHeadFeatures(num_heads=4, model_dim=128, num_classes=2)
     cross_model.to(device)
     optimizer_cross = torch.optim.Adam(cross_model.parameters(), lr=lr)
     #optimizer_cross = torch.optim.Adam(cross_model.parameters(), lr=lr, weight_decay=1e-5)
@@ -568,16 +572,21 @@ def train_model_CE_AUDIO_VIDEO_WEIGHTS(audio_model, video_model, num_epochs, aud
                         
                     img_audio        = audio_data[audio_modality].type(torch.float).cuda()
                     img_video        = video_data[video_modality].type(torch.float).cuda()                    
-                    #labels     = audio_data['label'].cuda()
-                    labels = audio_data['label'].type(torch.float).cuda() #PROBANDO ALEJANDRA
+                    labels     = audio_data['label'].cuda()
+                    #labels = audio_data['label'].type(torch.float).cuda() #PROBANDO ALEJANDRA
 
                     with torch.no_grad():    
                         embedding_audio = audio_model(img_audio, return_embedding=True) #Embebido de audio
+                        #features_audio = audio_model(img_audio, return_features=True) #Features de audio
                         embedding_video = video_model(img_video, return_embedding=True) #Embebido de video
-                    outputs, attention_weights  = cross_model(embedding_audio,embedding_video)
+                        #features_video = video_model(img_video, return_features=True) #EFeatures de video
+                    #outputs, attention_weights, attention_maps = cross_model(embedding_audio, embedding_video) # Atención con embebidos
+                    outputs = cross_model(embedding_audio, embedding_video, embedding_video) # Atención cruzada multicabeza final
+                    #outputs, attention_weights, attention_maps  = cross_model(features_audio, features_video) #Atención con features
                     attention_weights = attention_weights.detach().cpu().numpy()
-                    #loss        = criterion(outputs, labels)
-                    loss        = criterion(outputs.squeeze(), labels) #PROBANDO ALEJANDRA
+                    attention_maps = attention_maps.detach().cpu().numpy()
+                    loss        = criterion(outputs, labels)
+                    #loss        = criterion(outputs.squeeze(), labels) #PROBANDO ALEJANDRA
 
                     if phase == 'train':
                         optimizer_cross.zero_grad()
@@ -585,19 +594,19 @@ def train_model_CE_AUDIO_VIDEO_WEIGHTS(audio_model, video_model, num_epochs, aud
                         optimizer_cross.step()
                             
                     running_loss += loss.item()
-                    #logits       = torch.nn.Softmax(dim=1)(outputs)
+                    logits       = torch.nn.Softmax(dim=1)(outputs)
 
-                    predicted = (outputs > 0.5).float() #PROBANDO ALEJANDRA
-                    #predicted = logits.max(1).indices
+                    #predicted = (outputs > 0.5).float() #PROBANDO ALEJANDRA
+                    predicted = logits.max(1).indices
                     Y.extend(labels.cpu().numpy())
                     Y_pred.extend(predicted.cpu().numpy())
 
                     if phase == 'test':
                         #epoch_val_loss = running_loss / len(audio_dataloaders[phase].dataset)
-                        #PK_props.extend(logits[:, 1].cpu().numpy())
-                        PK_props.extend(predicted.cpu().numpy())  #PROBANDO ALEJANDRA
-                        #C_props.extend(logits[:, 0].cpu().numpy())
-                        C_props.extend(predicted.cpu().numpy()) #PROBANDO ALEJANDRA
+                        PK_props.extend(logits[:, 1].cpu().numpy())
+                        #PK_props.extend(predicted.cpu().numpy())  #PROBANDO ALEJANDRA
+                        C_props.extend(logits[:, 0].cpu().numpy())
+                        #C_props.extend(predicted.cpu().numpy()) #PROBANDO ALEJANDRA
                         Samples.extend(audio_data['patient_id'])
                         exercises.extend(audio_data['exercise'])
                         repetitions.extend(audio_data['repetition'])
@@ -610,6 +619,10 @@ def train_model_CE_AUDIO_VIDEO_WEIGHTS(audio_model, video_model, num_epochs, aud
                         #if early_stopping.early_stop:                
                         #    print("Early stopping triggered.")
                         #    break
+                        if epoch in [25, 49]:
+                            np.save(f'/data/franklin_pupils/Jose/Codigo/audiovisualpk/Parkinson-Multimodal-Cross-Attention/Models/DataAugmentation/Vowels/No_Softmax_2_4MultiCabezaAtencionSimpleSimilaridadDrop0.5AudioVideoVowels/PesosSimilaridad_{patient}_{epoch}.npy', attention_weights)
+                            np.save(f'/data/franklin_pupils/Jose/Codigo/audiovisualpk/Parkinson-Multimodal-Cross-Attention/Models/DataAugmentation/Vowels/No_Softmax_2_4MultiCabezaAtencionSimpleMapasAtencionDrop0.5AudioVideoVowels/PesosAtención_{patient}_{epoch}.npy', attention_maps)
+
                     running_acc = accuracy_score(Y, Y_pred)
                     stream.set_description('Epoch {}/{}-{}-loss:{:.4f}-acc:{:.4f}'.format(epoch+1, num_epochs, phase, running_loss/(index+1), running_acc))
                     stream.update()
@@ -618,9 +631,12 @@ def train_model_CE_AUDIO_VIDEO_WEIGHTS(audio_model, video_model, num_epochs, aud
 #            break      
 
     # Guardar los pesos del cross_model al finalizar el entrenamiento
-    torch.save(cross_model.state_dict(), f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models/DataAugmentation/PruebaBCEAlejandra/{patient}.pth')
+    #torch.save(cross_model.state_dict(), f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models/DataAugmentation/PruebaBCEAlejandra/{patient}.pth')
+    torch.save(cross_model.state_dict(), f'/data/franklin_pupils/Jose/Codigo/audiovisualpk/Parkinson-Multimodal-Cross-Attention/Models/DataAugmentation/Vowels/No_Softmax_2_4MultiCabezaAtencionSimpleDrop0.5AudioVideoVowels/{patient}.pth')
+    #torch.save(cross_model.state_dict(), f'/data/franklin_pupils/Jose/Codigo/audiovisualpk/Parkinson-Multimodal-Cross-Attention/Models/DataAugmentation/Phonemes/2_4PruebaFeatures0.5AudioVideoPhonemes/{patient}.pth')
     #Guardar los pesos de atención al finalizar el entrenamiento
-    np.save(f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models/DataAugmentation/AtencionPruebaBCEAlejandra/PesosAtención_{patient}.npy', attention_weights)
+    #np.save(f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models/DataAugmentation/AtencionPruebaBCEAlejandra/PesosAtención_{patient}.npy', attention_weights)
+    #np.save(f'/data/franklin_pupils/Jose/Codigo/audiovisualpk/Parkinson-Multimodal-Cross-Attention/Models/DataAugmentation/Phonemes/3_4MultiCabezaPesosAtencionSimpleDrop0.5AudioVideoPhonemes/PesosAtención_{patient}.npy', attention_weights)
     
     return Y, Y_pred, PK_props, C_props, Samples, exercises, repetitions
 

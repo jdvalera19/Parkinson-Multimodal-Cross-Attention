@@ -46,11 +46,11 @@ if __name__== "__main__":
     lr          = 0.000001
     epoch       = 50
     batch_size  = 5
-    exercise    = 'Phonemes'
-    path_data   = '/home/arumota_pupils/Jose/Dataset/AudioVisualData_v7'
-    #path_data   = '/data/franklin_pupils/Jose/Dataset/AudioVisualData_v7'
-    #note        = 'DataAugmentation_SingleCabezaAtenciónSimpleDrop0.5_atenciónEmbebidos_AUDIO2D_VIDEO3D_PesosGuardados:weights' 
-    note        = 'PruebaAlejandraBCE_AUDIO2D_VIDEO3D_PesosGuardados:weights' 
+    exercise    = 'Vowels'
+    #path_data   = '/home/arumota_pupils/Jose/Dataset/AudioVisualData_v7'
+    path_data   = '/data/franklin_pupils/Jose/Dataset/AudioVisualData_v7'
+    note        = 'No_Softmax_2_DataAugmentation_4MultiCabezaAtenciónSimpleDrop0.5_atenciónEmbebidos_AUDIO2D_VIDEO3D_PesosGuardados:weights' 
+    #note        = 'DataAugmentation_4MultiCabezaAtenciónSimpleDrop0.5_atenciónFeatures_AUDIO2D_VIDEO3D_PesosGuardados:weights' 
     s_duration  = False
 
     #-------------------------------------------------------------------
@@ -177,6 +177,7 @@ if __name__== "__main__":
         #----------------------------------------------------------------
         audio_transformations = transforms.Compose([
             AdditiveGaussianNoise(mean=0.0, std=0.005),  # Añadir ruido
+            #AdditiveNoiseFloor(noise_level=0.05),  # Añadir ruido blanco adaptado
             #ApplyAudioTransforms(),  # Aplicar enmascarado de frecuencia y tiempo
             To_Tensor_audio()  # Pasar a tensor
         ])        
@@ -261,7 +262,7 @@ if __name__== "__main__":
         repetitions_g   += repetitions
 
 
-    dataframe_of_results_name = 'Results_v2/DataAugmentation/Note:{}-Lr:{}-Epoch:{}-Exercise:{}-duration_size:{}.csv'.format(note, lr, epoch, exercise, s_duration)
+    dataframe_of_results_name = 'Results_v2/DataAugmentation/Vowels/Note:{}-Lr:{}-Epoch:{}-Exercise:{}-duration_size:{}.csv'.format(note, lr, epoch, exercise, s_duration)
 
     data_frame_of_results = pd.DataFrame({'Y_true'       : Y_true_g,
                                           'Y_pred'       : Y_pred_g,
@@ -273,7 +274,7 @@ if __name__== "__main__":
 
     data_frame_of_results.to_csv(dataframe_of_results_name)
 
-    view_results_2(dataframe_of_results_name)
+    view_results(dataframe_of_results_name)
         
 
         

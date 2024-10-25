@@ -126,8 +126,6 @@ class BasicConv3dRBF(nn.Module):
         x = self.bn(x)
         return x
 
-
-
 class RBF_modified3D(nn.Module):
     def __init__(self, in_channel, out_channel):
         super(RBF_modified3D, self).__init__()
@@ -167,7 +165,6 @@ class RBF_modified3D(nn.Module):
         
         return x
     
-
 class RFBMultiHeadAttn_V1(nn.Module):
     def __init__(self, in_dim, filters_head, num_multiheads):
         super(RFBMultiHeadAttn_V1, self).__init__()  
@@ -236,7 +233,6 @@ class RFBMultiHeadAttn_V1(nn.Module):
 
         return self.rearrange_for(result)
 
-
 class RFBMultiHAttnNetwork_V3(nn.Module): 
     def __init__(self):
         super().__init__()
@@ -267,7 +263,6 @@ class RFBMultiHAttnNetwork_V3(nn.Module):
         x = self.fc2(x)
         x = T.sigmoid(x)
         return x 
-
 
 class RFBMultiHeadAttn_V2(nn.Module):
     def __init__(self, in_dim_q, in_dim_kv, filters_head, num_multiheads, num_classes=2, dropout_rate=0., target_features=4):
@@ -343,7 +338,7 @@ class RFBMultiHeadAttn_V2(nn.Module):
         return outputs
 
 
-class CrossAttention(nn.Module):
+#class CrossAttention(nn.Module):
     def __init__(self, query_dim, context_dim, filters_head):
         super(CrossAttention, self).__init__()
         self.query_dim = query_dim
@@ -428,7 +423,6 @@ class CrossAttentionEmbedding(nn.Module):
 
         return att_output
     
-
 class SimpleCrossAttention(nn.Module):
     def __init__(self, dim_input, dim_query, dim_key, dim_value):
         super(SimpleCrossAttention, self).__init__()
@@ -437,9 +431,17 @@ class SimpleCrossAttention(nn.Module):
         self.key_layer = nn.Linear(dim_input, dim_key)
         self.value_layer = nn.Linear(dim_input, dim_value)
         self.classifier = nn.Linear(dim_input, 2)
-        self.batch=nn.BatchNorm1d(128)
-        self.dropout = nn.Dropout(0.5)
+        #self.batch=nn.BatchNorm1d(128)
+        #self.dropout = nn.Dropout(0.5)
+        self.apply(self._init_weights)
 
+    def _init_weights(self, module):
+        """Inicializa los pesos del modelo."""
+        if isinstance(module, nn.Linear):
+            nn.init.kaiming_uniform_(module.weight, nonlinearity='relu')
+            if module.bias is not None:
+                nn.init.constant_(module.bias, 0)
+    
     def forward(self, input1, input2):
         """
         query, key, value: Tensors de entrada de tamaño (batch_size, dim_input)
@@ -449,25 +451,47 @@ class SimpleCrossAttention(nn.Module):
         key = self.key_layer(input2)
         value = self.value_layer(input2)
 
-
         # Calcular el producto punto entre query y key
-        scores = torch.matmul(query, key.transpose(-2, -1)) / (key.size(-1) ** 0.5) #Averiguar otras maneras: suma, etc
+        attn_scores = torch.matmul(query, key.transpose(-2, -1)) / (key.size(-1) ** 0.5) #Averiguar otras maneras: suma, etc
 
         # Aplicar Softmax para obtener los pesos de atención
-        attn_weights = F.softmax(scores, dim=-1)
-
+        attn_scores = F.softmax(attn_scores, dim=-1)
 
         # Multiplicar los pesos de atención con el value
-        output = torch.matmul(attn_weights, value)
+        attn_maps = torch.matmul(attn_scores, value)
         
-        output = self.batch(output)
-        output = self.dropout(output)
+        #output = self.batch(attn_maps)
+        #output = self.dropout(output)
 
-        logits = self.classifier(output)
-        #Aplicar una softmax si tiene dos neuronas, si no una signmoide.
+        #logits = self.classifier(output)
 
-        return logits, attn_weights  # Retornar también los pesos de atención para visualización o análisis
-        
+        return attn_scores, attn_maps  # Retornar también los pesos de atención para visualización o análisis        
+
+class FinalMultiHeadAttention(nn.Module):
+    def __init__(self, dim_input, dim_query, dim_key, dim_value, num_heads):
+        super(FinalMultiHeadAttention, self).__init__()
+        #Crear múltiples cabezas de atención cruzada
+        self.heads = nn.ModuleList(
+            [SimpleCrossAttention(dim_input, dim_query, dim_key, dim_value)
+             for _ in range(num_heads)]
+        )
+        self.num_heads = num_heads
+
+    def forward(self, q, k, v):
+        attention_scores_all = []
+        attention_maps_all = []
+
+        #Calcular atención para cada cabeza
+        for head in self.heads:
+            attention_scores, attention_maps = head(q, k, v)
+            attention_scores_all.append(attention_scores)
+            attention_maps_all.append(attention_maps)
+
+        #Concatenar las salidad de cada cabeza
+        concatenated_output = torch.cat(attention_maps, dim=-1)
+
+        return concatenated_output
+    
 class MultiHeadAttention(nn.Module):
     def __init__(self, num_heads, model_dim, num_classes):
         super(MultiHeadAttention, self).__init__()
@@ -500,15 +524,101 @@ class MultiHeadAttention(nn.Module):
         v = self.split_heads(self.Wv(input2), batch_size)
 
         scaled_attention_logits = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.depth)
-        attention_weights = F.dropout(F.softmax(scaled_attention_logits, dim=-1), p=0.5, training=self.training)
-        output = torch.matmul(attention_weights, v)
-        output = output.permute(0, 2, 1, 3)
+        #attention_weights = F.softmax(scaled_attention_logits, dim=-1)
+        attention_weights = F.dropout(scaled_attention_logits, p=0.5, training=self.training)
+        attention_maps = torch.matmul(attention_weights, v)
+        output = attention_maps.permute(0, 2, 1, 3)
         output = output.view(batch_size, -1)
         output = self.batch(output)
         output = self.dense(output)
-        output = torch.sigmoid(output)
-        return output, attention_weights
+        #output = torch.sigmoid(output) #PROBANDO ALEJANDRA
+        return output, attention_weights, attention_maps
 
+class CrossModalAttentionMultiHeadFeatures(nn.Module):
+    def __init__(self, num_heads, model_dim, num_classes):
+        super(CrossModalAttentionMultiHeadFeatures, self).__init__()
+        self.num_heads = num_heads
+        self.model_dim = model_dim
+        self.depth = model_dim // num_heads  # Profundidad de cada cabeza
+
+        # Proyecciones para video y audio
+        self.video_proj = nn.Conv3d(64, model_dim, kernel_size=(3, 3, 3), padding=0)  # Proyección 3D para video
+        self.audio_proj = nn.Conv2d(64, model_dim, kernel_size=(3, 3), padding=0)      # Proyección 2D para audio
+        self.reduce_audio = nn.Linear(2048, model_dim)  # Reducción a model_dim (128)
+        self.reduce_video = nn.Linear(8192, model_dim)  # Reducción a model_dim (128)        
+        
+        # Pooling para reducir dimensiones espaciales/temporales
+        self.global_pool = nn.AdaptiveAvgPool3d((4, 4, 4))  # Pooling 3D para video
+        self.global_pool_audio = nn.AdaptiveAvgPool2d((4, 4))  # Pooling 2D para audio
+
+        # Proyecciones lineales para la atención
+        self.Wq = nn.Linear(model_dim, model_dim)
+        self.Wk = nn.Linear(model_dim, model_dim)
+        self.Wv = nn.Linear(model_dim, model_dim)
+        self.dense1 = nn.Linear(2048, 512)
+        self.dense2 = nn.Linear(512, num_classes)
+        self.batch = nn.BatchNorm1d(2048)
+        self.apply(self._init_weights)
+
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            nn.init.kaiming_uniform_(module.weight, nonlinearity='relu')
+            if module.bias is not None:
+                nn.init.constant_(module.bias, 0)
+
+    def split_heads(self, x, batch_size):
+        """
+        Separa las características en múltiples cabezas.
+        x: tensor de entrada con forma [batch_size, seq_len, model_dim]
+        return: tensor con forma [batch_size, num_heads, seq_len, depth]
+        """
+        x = x.view(batch_size, -1, self.num_heads, self.depth)
+        return x.permute(0, 2, 1, 3)  # Reorganiza las dimensiones: [batch_size, num_heads, seq_len, depth]
+
+    def forward(self, audio_input, video_input):
+        batch_size = video_input.size(0)
+
+        # Proyectar video
+        video_features = self.video_proj(video_input)  # Proyección 3D
+        video_features = self.global_pool(video_features)  # Global Pooling
+        video_features = video_features.view(batch_size, -1, 128)
+        #video_features = self.reduce_video(video_features) # Reducción a model_dim
+
+        # Proyectar audio
+        audio_features = self.audio_proj(audio_input)  # Proyección 2D
+        audio_features = self.global_pool_audio(audio_features)  # Global Pooling
+        audio_features = audio_features.view(batch_size, -1, 128)
+        #audio_features = self.reduce_audio(audio_features)  # Reducción a model_dim
+
+        # Atención cruzada
+        q = self.Wq(audio_features)
+        k = self.Wk(video_features)
+        v = self.Wv(video_features)
+
+        # Separar por cabezas
+        q = self.split_heads(q, batch_size)  # [batch_size, num_heads, seq_len_q, depth]
+        k = self.split_heads(k, batch_size)  # [batch_size, num_heads, seq_len_k, depth]
+        v = self.split_heads(v, batch_size)  # [batch_size, num_heads, seq_len_v, depth]
+
+        # Calcular atención
+        scaled_attention_logits = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.depth)
+        attention_weights = F.softmax(scaled_attention_logits, dim=-1)  # [batch_size, num_heads, seq_len_q, seq_len_k]
+        attention_weights = F.dropout(attention_weights, p=0.5, training=self.training)
+
+        # Aplicar atención
+        attention_maps = torch.matmul(attention_weights, v)  # [batch_size, num_heads, seq_len_q, depth]
+
+        # Reorganizar y aplanar las cabezas para concatenarlas
+        output = attention_maps.permute(0, 2, 1, 3).contiguous()  # [batch_size, seq_len_q, num_heads, depth]
+        output = output.view(batch_size, -1)  # Aplanar: [batch_size, seq_len_q * num_heads * depth]
+
+        # Pasar por batch normalization y capa densa
+        output = self.batch(output)
+        output = self.dense1(output)
+        output = self.dense2(output)
+    
+
+        return output, attention_weights, attention_maps
 
 class RFBMultiHAttnNetwork_V4(nn.Module):
     def __init__(self, query_dim, context_dim, filters_head):
@@ -568,7 +678,6 @@ class BasicConv2D(nn.Module):
         #Agregar acá un batch norm
         return x
     
-
 class New_RFBMultiHAttnNetwork_V4(nn.Module):
     def __init__(self, query_dim, context_dim, filters_head):
         super(New_RFBMultiHAttnNetwork_V4, self).__init__()
