@@ -625,8 +625,8 @@ class ApplyAudioTransforms:
 class ApplyVideoTransforms:
     def __init__(self):
         self.transforms = transforms.Compose([
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomRotation(degrees=5),
+            #transforms.RandomHorizontalFlip(p=0.5),
+            #transforms.RandomRotation(degrees=5),
             transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
             #transforms.RandomResizedCrop(size=(224, 224), scale=(0.8, 1.0))
         ])

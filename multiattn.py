@@ -4,7 +4,6 @@ from einops import rearrange
 import torch
 
 
-
 """ os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ['CUDA_VISIBLE_DEVICES'] = '6'
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
@@ -422,7 +421,53 @@ class CrossAttentionEmbedding(nn.Module):
         att_output = torch.matmul(att_map, proj_v)  # [batch_size, hidden_dim]
 
         return att_output
+
+class SimpleSelfAttention(nn.Module):
+    def __init__(self, dim_input, dim_query, dim_key, dim_value):
+        super(SimpleSelfAttention, self).__init__()
+        # Inicialización de las capas lineales para cada uno de los componentes Q, K, V
+        self.query_layer = nn.Linear(dim_input, dim_query)
+        self.key_layer = nn.Linear(dim_input, dim_key)
+        self.value_layer = nn.Linear(dim_input, dim_value)
+        #self.classifier = nn.Linear(dim_input, 2)
+        self.batch=nn.LayerNorm(dim_value)
+        self.dropout = nn.Dropout(0.5)
+        self.apply(self._init_weights)
+
+    def _init_weights(self, module):
+        """Inicializa los pesos del modelo."""
+        if isinstance(module, nn.Linear):
+            nn.init.kaiming_uniform_(module.weight, nonlinearity='relu')
+            if module.bias is not None:
+                nn.init.constant_(module.bias, 0)
     
+    def forward(self, input):
+        """
+        query, key, value: Tensors de entrada de tamaño (batch_size, dim_input)
+        """
+        # Generar Q, K, V aplicando las capas lineales correspondientes
+        query = self.query_layer(input)
+        key = self.key_layer(input)
+        value = self.value_layer(input)
+        #AGREGAR UNA ACTIVACIÓN A CADA Q,K,V
+
+        # Calcular el producto punto entre query y key
+        attn_scores = torch.matmul(query.transpose(-2, -1), key) / (key.size(-1) ** 0.5) #Averiguar otras maneras: suma, etc
+
+        # Aplicar Softmax para obtener los pesos de atención
+        attn_scores = F.softmax(attn_scores, dim=-1)
+
+        # Multiplicar los pesos de atención con el value
+        attn_maps = torch.matmul(attn_scores, value.transpose(-2, -1))
+        attn_maps = attn_maps.transpose(-2, -1)
+        
+        output = self.batch(attn_maps)
+        output = self.dropout(output)
+
+        #logits = self.classifier(output)
+
+        return attn_scores, attn_maps, output   # Retornar también los pesos de atención para visualización o análisis    
+
 class SimpleCrossAttention(nn.Module):
     def __init__(self, dim_input, dim_query, dim_key, dim_value):
         super(SimpleCrossAttention, self).__init__()
@@ -430,9 +475,9 @@ class SimpleCrossAttention(nn.Module):
         self.query_layer = nn.Linear(dim_input, dim_query)
         self.key_layer = nn.Linear(dim_input, dim_key)
         self.value_layer = nn.Linear(dim_input, dim_value)
-        self.classifier = nn.Linear(dim_input, 2)
-        #self.batch=nn.BatchNorm1d(128)
-        #self.dropout = nn.Dropout(0.5)
+        #self.classifier = nn.Linear(dim_input, 2)
+        self.batch=nn.LayerNorm(dim_value)
+        self.dropout = nn.Dropout(0.5)
         self.apply(self._init_weights)
 
     def _init_weights(self, module):
@@ -452,45 +497,60 @@ class SimpleCrossAttention(nn.Module):
         value = self.value_layer(input2)
 
         # Calcular el producto punto entre query y key
-        attn_scores = torch.matmul(query, key.transpose(-2, -1)) / (key.size(-1) ** 0.5) #Averiguar otras maneras: suma, etc
+        attn_scores = torch.matmul(query.transpose(-2, -1), key) / (key.size(-1) ** 0.5) #Averiguar otras maneras: suma, etc
 
         # Aplicar Softmax para obtener los pesos de atención
         attn_scores = F.softmax(attn_scores, dim=-1)
 
         # Multiplicar los pesos de atención con el value
-        attn_maps = torch.matmul(attn_scores, value)
+        attn_maps = torch.matmul(attn_scores, value.transpose(-2, -1))
+        attn_maps = attn_maps.transpose(-2, -1)
         
-        #output = self.batch(attn_maps)
-        #output = self.dropout(output)
+        output = self.batch(attn_maps)
+        output = self.dropout(output)
 
         #logits = self.classifier(output)
 
-        return attn_scores, attn_maps  # Retornar también los pesos de atención para visualización o análisis        
+        return attn_scores, attn_maps, output   # Retornar también los pesos de atención para visualización o análisis        
 
 class FinalMultiHeadAttention(nn.Module):
     def __init__(self, dim_input, dim_query, dim_key, dim_value, num_heads):
         super(FinalMultiHeadAttention, self).__init__()
         #Crear múltiples cabezas de atención cruzada
         self.heads = nn.ModuleList(
-            [SimpleCrossAttention(dim_input, dim_query, dim_key, dim_value)
+            #[SimpleCrossAttention(dim_input, dim_query, dim_key, dim_value)
+            [SimpleSelfAttention(dim_input, dim_query, dim_key, dim_value)
              for _ in range(num_heads)]
         )
         self.num_heads = num_heads
+        self.dense = nn.Sequential(
+            nn.Linear(dim_key * num_heads, 64),  # Reducción intermedia
+            #nn.ReLU(),
+            nn.Linear(64, 2)  # Salida final
+        )
 
-    def forward(self, q, k, v):
+    #def forward(self, input1, input2):
+    def forward(self, input):
         attention_scores_all = []
         attention_maps_all = []
+        output_all = []
 
         #Calcular atención para cada cabeza
         for head in self.heads:
-            attention_scores, attention_maps = head(q, k, v)
+            #attention_scores, attention_maps, output = head(input1, input2)
+            attention_scores, attention_maps, output = head(input)
             attention_scores_all.append(attention_scores)
             attention_maps_all.append(attention_maps)
+            output_all.append(output)
 
         #Concatenar las salidad de cada cabeza
-        concatenated_output = torch.cat(attention_maps, dim=-1)
+        concatenated_output = torch.cat(output_all, dim=-1)
+        # Apply batch normalization and dropout to concatenated output
+        #concatenated_output = self.final_batch_norm(concatenated_output)
+        #concatenated_output = self.final_dropout(concatenated_output)
+        outputs = self.dense(concatenated_output)          
 
-        return concatenated_output
+        return outputs, attention_scores_all, attention_maps_all
     
 class MultiHeadAttention(nn.Module):
     def __init__(self, num_heads, model_dim, num_classes):
@@ -677,8 +737,24 @@ class BasicConv2D(nn.Module):
         x = self.relu(x)
         #Agregar acá un batch norm
         return x
-    
+
+class EmbeddingConcatenation(nn.Module):
+    #def __init__(self, input_dim, output_dim=2):
+    def __init__(self):
+        super(EmbeddingConcatenation, self).__init__()
+        #self.concat_layer = nn.Linear(input_dim, output_dim)
+        #self.batchnorm = nn.LayerNorm(256)  # Cambia a input_dim para claridad
+        #self.dropout = nn.Dropout(0.5)
+
+    def forward(self, embed1, embed2):
+        concatenated_embed = torch.cat((embed1, embed2), dim=1)
+        #normalized_embed = self.batchnorm(concatenated_embed)  # Normaliza la concatenación
+        #output = self.concat_layer(normalized_embed)  # Usa el embed normalizado como entrada
+        #output = self.dropout(output)
+        return concatenated_embed
+
 class New_RFBMultiHAttnNetwork_V4(nn.Module):
+
     def __init__(self, query_dim, context_dim, filters_head):
         super(New_RFBMultiHAttnNetwork_V4, self).__init__()
         self.query_dim = query_dim

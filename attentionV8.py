@@ -43,13 +43,13 @@ if __name__== "__main__":
     #-------------------------------------------------------------------
     # Define the model parameters
     #-------------------------------------------------------------------
-    lr          = 0.00001
+    lr          = 0.001
     epoch       = 70
-    batch_size  = 1
-    exercise    = 'Vowels'
+    batch_size  = 5
+    exercise    = 'Phonemes'
     path_data   = '/data/arumota_pupils/Jose/AudioVisualData_v7'
     #path_data   = '/data/franklin_pupils/Jose/Dataset/AudioVisualData_v7'
-    note        = 'PRUEBA_ATENCION_FINAL_NoDataAugmentation_1Cabeza0.5AtenciónFinal_atenciónEmbebidos_AUDIO2D_VIDEO3D_PesosGuardados:weights' 
+    note        = 'INIT_FUERA_PRUEBA_ATENCION_FINAL_DataAugmentation_1Cabeza0.5AtenciónFinal_atenciónEmbebidos_LR_PRUEBA_AUDIO2D_VIDEO3D_PesosGuardados:weights' 
     #note        = 'DataAugmentation_4MultiCabezaAtenciónSimpleDrop0.5_atenciónFeatures_AUDIO2D_VIDEO3D_PesosGuardados:weights' 
     s_duration  = False
 
@@ -94,6 +94,9 @@ if __name__== "__main__":
                                                                                exercise_s  = exercise, 
                                                                                duration    = duration_video)  
 
+    # Inicializar el modelo de atención fuera del bucle de pacientes
+    cross_model = FinalMultiHeadAttention(dim_input=128, dim_query=64, dim_key=64, dim_value=64, num_heads=1).to(device)
+    optimizer_cross = torch.optim.Adam(cross_model.parameters(), lr=lr, weight_decay=0.001)
     
     for patient in patients:
         
@@ -144,7 +147,7 @@ if __name__== "__main__":
         # Generate Video Data Augmentation
         #----------------------------------------------------------------
         video_transformations = transforms.Compose([
-        #ApplyVideoTransforms(),  # Aplicar transformaciones al video
+        ApplyVideoTransforms(),  # Aplicar transformaciones al video
         To_Tensor_video()  # Pasar a tensor
         ])
         
@@ -176,7 +179,7 @@ if __name__== "__main__":
         # Generate Audio Data Augmentation
         #----------------------------------------------------------------
         audio_transformations = transforms.Compose([
-            #AdditiveGaussianNoise(mean=0.0, std=0.005),  # Añadir ruido
+            AdditiveGaussianNoise(mean=0.0, std=0.005),  # Añadir ruido
             #AdditiveNoiseFloor(noise_level=0.05),  # Añadir ruido blanco adaptado
             #ApplyAudioTransforms(),  # Aplicar enmascarado de frecuencia y tiempo
             To_Tensor_audio()  # Pasar a tensor
@@ -231,7 +234,9 @@ if __name__== "__main__":
         """
         Y_true, Y_pred, PK_props, C_props, sample_ids, exercises, repetitions = train_model_CE_AUDIO_VIDEO_WEIGHTS(
                                                         audio_model       = audio_model,
-                                                        video_model       = video_model,  
+                                                        video_model       = video_model,
+                                                        cross_model       = cross_model,
+                                                        optimizer_cross   = optimizer_cross,  
                                                         num_epochs  = epoch,
                                                         audio_dataloaders = audio_dataloaders,
                                                         video_dataloaders = video_dataloaders,
@@ -262,7 +267,7 @@ if __name__== "__main__":
         repetitions_g   += repetitions
 
 
-    dataframe_of_results_name = 'Results_v2/NoDataAugmentation/Vowels/Note:{}-Lr:{}-Epoch:{}-Exercise:{}-duration_size:{}.csv'.format(note, lr, epoch, exercise, s_duration)
+    dataframe_of_results_name = 'Results_v4/DataAugmentation_4/Phonemes/Note:{}-Lr:{}-Epoch:{}-Exercise:{}-duration_size:{}-batch_size:{}.csv'.format(note, lr, epoch, exercise, s_duration, batch_size)
 
     data_frame_of_results = pd.DataFrame({'Y_true'       : Y_true_g,
                                           'Y_pred'       : Y_pred_g,

@@ -8,12 +8,13 @@ class CNNModel3D(nn.Module):
 
         self.conv_layer1 = self._conv_layer_set(1, 32)
         self.conv_layer2 = self._conv_layer_set(32, 64)           
+        #self.conv_layer2 = self._conv_layer_set(32, 96)           
         #self.conv_layer3 = self._conv_layer_set(64, 96)           
         #¿Aquí conv 1x1?
         #self.conv1x1 = nn.Conv3d(64, 28, kernel_size=(2, 2, 2))  # 1x1 Convolution que sea solo 1 característica       
-        #self.fc1 = nn.Linear(1679616, 128) #Vowels
+        self.fc1 = nn.Linear(1679616, 128) #Vowels
         #self.fc1 = nn.Linear(373248, 128) #Words  
-        self.fc1 = nn.Linear(1306368, 128) #Phonemes
+        #self.fc1 = nn.Linear(1306368, 128) #Phonemes
         self.fc2 = nn.Linear(128, 2)
         self.relu = nn.LeakyReLU()
         self.batch=nn.BatchNorm1d(128)
@@ -29,7 +30,7 @@ class CNNModel3D(nn.Module):
         )
         return conv_layer
 
-    def forward(self, x, return_features=False):
+    def forward(self, x, return_features=False, return_embedding=False):
         # Set 1
         #print(x.shape)
         out = self.conv_layer1(x)
@@ -37,14 +38,16 @@ class CNNModel3D(nn.Module):
         #out = self.conv_layer3(out)
         #out = self.conv1x1(out)        
         #out = out.view(out.size(0), out.size(1)*out.size(2), out.size(3), out.size(4))
-        out = out.view(out.size(0), -1)
         #print(out.shape)
         if return_features:
             return out          
+        out = out.view(out.size(0), -1)
         out = self.fc1(out)
         out = self.relu(out)
         out = self.batch(out)
         out = self.drop(out)
+        if return_embedding:
+            return out           
         out = self.fc2(out)
         
         return out

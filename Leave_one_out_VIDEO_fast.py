@@ -30,9 +30,9 @@ if __name__== "__main__":
     lr          = 0.0001
     epoch       = 50
     batch_size  = 5
-    exercise    = 'Vowels'
-    path_data   = '/data/franklin_pupils/Jose/Dataset/AudioVisualData_v7'
-    note        = '3_VIDEO:weights'
+    exercise    = 'Words'
+    path_data   = '/data/arumota_pupils/Jose/AudioVisualData_v7'
+    note        = '5_VIDEO:weights'
     s_duration  = False
 
     #-------------------------------------------------------------------
@@ -169,7 +169,7 @@ if __name__== "__main__":
         exercises_g     += exercises
         repetitions_g   += repetitions
         
-    dataframe_of_results_name = 'Results_v2/Note:{}-Lr:{}-Epoch:{}-Exercise:{}-duration_size:{}.csv'.format(note, lr, epoch, exercise, s_duration)
+    dataframe_of_results_name = 'Results_v3/Brayan_Jose/Words/Note:{}-Lr:{}-Epoch:{}-Exercise:{}-duration_size:{}.csv'.format(note, lr, epoch, exercise, s_duration)
 
     data_frame_of_results = pd.DataFrame({'Y_true'       : Y_true_g,
                                           'Y_pred'       : Y_pred_g,

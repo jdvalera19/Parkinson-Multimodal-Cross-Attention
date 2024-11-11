@@ -3,6 +3,7 @@ import numpy             as np
 import matplotlib.pyplot as plt
 import matplotlib        as mpl
 import seaborn           as sns
+import ast
 
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 from sklearn           import metrics
@@ -10,11 +11,36 @@ from sklearn.metrics   import accuracy_score
 from sklearn.metrics   import precision_recall_fscore_support
 from sklearn.metrics   import roc_curve, auc
 
-def view_results(data_name):
+def view_results_2(data_name):
     results = pd.read_csv(data_name)
     values = results.values[:,1:]
 
-    Y_true, Y_pred = values[:,0].astype(np.int64), values[:,1].astype(np.int64)
+    # Limpiar las cadenas y convertirlas a floats
+    def clean_value(val):
+        # Eliminar los corchetes y convertir la cadena a float
+        return float(ast.literal_eval(val)[0]) if isinstance(val, str) else val
+
+    # Aplicar la limpieza de valores
+    Y_true = np.array([clean_value(v) for v in values[:,0]]).astype(np.float64).astype(np.int64)
+    Y_pred = np.array([clean_value(v) for v in values[:,1]]).astype(np.float64).astype(np.int64)
+    PK_props = np.array([clean_value(v) for v in values[:,2]]).astype(np.float64)
+
+    # Calcular las métricas
+    acc = accuracy_score(Y_true, Y_pred)
+    prf = precision_recall_fscore_support(Y_true, Y_pred, zero_division=0.0, pos_label=1)
+    fpr, tpr, thresholds = roc_curve(Y_true, PK_props, pos_label=1)
+    auc_metric = auc(fpr, tpr)
+
+    print("==========================================================================================")
+    print("Precision:{:.4f}, Recall:{:.4f}, F1-score:{:.4f}, Accuracy:{:.4f}, AUC:{:.4f}".format(prf[0][1], prf[1][1], prf[2][1], acc, auc_metric))
+    print("==========================================================================================")
+
+def view_results(data_name, n_bootstrap=1000):
+    results = pd.read_csv(data_name)
+    values = results.values[:,1:]
+
+    #Y_true, Y_pred = values[:,0].astype(np.int64), values[:,1].astype(np.int64)
+    Y_true, Y_pred = values[:,0].astype(np.float64).astype(np.int64), values[:,1].astype(np.float64).astype(np.int64) #PRUEBA ALEJANDRA
     PK_props       = values[:,2].astype(np.float64)
 
 
@@ -23,8 +49,24 @@ def view_results(data_name):
     fpr, tpr, thresholds = roc_curve(Y_true, PK_props, pos_label=1)
     auc_metric = auc(fpr, tpr)
     
+    # Bootstrap para calcular desviación estándar del AUC
+    auc_scores = []
+    for _ in range(n_bootstrap):
+        # Muestreo con reemplazo
+        indices = np.random.choice(len(Y_true), len(Y_true), replace=True)
+        Y_true_sample = Y_true[indices]
+        PK_props_sample = PK_props[indices]
+        
+        # Calcular AUC en el bootstrap sample
+        fpr_sample, tpr_sample, _ = roc_curve(Y_true_sample, PK_props_sample, pos_label=1)
+        auc_sample = auc(fpr_sample, tpr_sample)
+        auc_scores.append(auc_sample)
+    
+    # Calcular desviación estándar del AUC a partir de los valores obtenidos en el bootstrap
+    auc_std = np.std(auc_scores)
+
     print("==========================================================================================")
-    print("Precision:{:.4f}, Recall:{:.4f}, F1-score:{:.4f}, Accuracy:{:.4f}, AUC:{:.4f}".format(prf[0][1], prf[1][1], prf[2][1], acc, auc_metric))
+    print("Precision:{:.4f}, Recall:{:.4f}, F1-score:{:.4f}, Accuracy:{:.4f}, AUC:{:.4f} ± {:.4f}".format(prf[0][1], prf[1][1], prf[2][1], acc, auc_metric, auc_std))
     print("==========================================================================================")
 
 def audio_visual_evaluation(resultAudio, resultVideo):

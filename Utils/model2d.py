@@ -10,8 +10,8 @@ class CNNModel2D(nn.Module):
         self.conv_layer1 = self._conv_layer_set(2, 32)
         self.conv_layer2 = self._conv_layer_set(32, 64)
         #self.fc1 = nn.Linear(373248, 128) #3D
-        #self.fc1 = nn.Linear(194432, 128) #2D Vowels
-        self.fc1 = nn.Linear(154752, 128) #2D Phonemes
+        self.fc1 = nn.Linear(194432, 128) #2D Vowels
+        #self.fc1 = nn.Linear(154752, 128) #2D Phonemes
         #self.fc1 = nn.Linear(59520, 128) #2D Words
         self.fc2 = nn.Linear(128, 2)
         self.relu = nn.LeakyReLU()

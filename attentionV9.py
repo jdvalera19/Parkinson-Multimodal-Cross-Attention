@@ -95,6 +95,9 @@ if __name__== "__main__":
                                                                                duration    = duration_video)  
 
     
+    concat_model = EmbeddingConcatenation(input_dim=256).to(device)
+    optimizer_concat = torch.optim.Adam(concat_model.parameters(), lr=lr)
+    
     for patient in patients:
         
         #audios_Train, audios_Test, videos_Train, videos_Test, duration_audio, duration_video = generate_train_and_test_sets(path_base   = path_data, 
@@ -229,9 +232,11 @@ if __name__== "__main__":
                                                        modality    = 'video',
                                                        lr          = lr)  
         """
-        Y_true, Y_pred, PK_props, C_props, sample_ids, exercises, repetitions = train_model_CE_AUDIO_VIDEO_WEIGHTS(
+        Y_true, Y_pred, PK_props, C_props, sample_ids, exercises, repetitions = train_model_CE_AUDIO_VIDEO_WEIGHTS_CONCATENACION(
                                                         audio_model       = audio_model,
-                                                        video_model       = video_model,  
+                                                        video_model       = video_model,
+                                                        concat_model      = concat_model,
+                                                        optimizer_concat  = optimizer_concat,  
                                                         num_epochs  = epoch,
                                                         audio_dataloaders = audio_dataloaders,
                                                         video_dataloaders = video_dataloaders,
