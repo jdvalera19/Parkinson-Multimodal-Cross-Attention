@@ -676,10 +676,10 @@ def train_model_CE_AUDIO_VIDEO_WEIGHTS_SELF_ATTENTION(audio_model, video_model, 
     #criterion = torch.nn.BCEWithLogitsLoss() #PROBANDO ALEJANDRA
     #criterion = torch.nn.BCELoss() #PROBANDO ALEJANDRA
     # Cargar los pesos para cada paciente específico
-    audio_weight_path = f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models_2/AudioVowels/{patient}.pth'
-    #audio_weight_path = f'/data/franklin_pupils/Jose/Codigo/audiovisualpk/Parkinson-Multimodal-Cross-Attention/Models/AudioVowels/{patient}.pth'
-    video_weight_path = f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models_2/VideoVowels/{patient}.pth'
-    #video_weight_path = f'/data/franklin_pupils/Jose/Codigo/audiovisualpk/Parkinson-Multimodal-Cross-Attention/Models/VideoVowels/{patient}.pth'
+    #audio_weight_path = f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models_2/AudioVowels/{patient}.pth'
+    audio_weight_path = f'/data/franklin_pupils/Jose/Codigo/audiovisualpk/Parkinson-Multimodal-Cross-Attention/Models_2/AudioPhonemes/{patient}.pth'
+    #video_weight_path = f'/home/arumota_pupils/Jose/Codigo/Parkinson-Multimodal-Cross-Attention/Models_2/VideoVowels/{patient}.pth'
+    video_weight_path = f'/data/franklin_pupils/Jose/Codigo/audiovisualpk/Parkinson-Multimodal-Cross-Attention/Models_2/VideoPhonemes/{patient}.pth'
     video_model.load_state_dict(torch.load(video_weight_path))
     audio_model.load_state_dict(torch.load(audio_weight_path))
 
@@ -799,9 +799,9 @@ def train_model_CE_AUDIO_VIDEO_WEIGHTS_SELF_ATTENTION(audio_model, video_model, 
                         #    break
                         if epoch in [25, 49]:
                             # Save lists of tensors
-                            with open(f'Models/DataAugmentation_4/Vowels/SELF_ATTENTION_2HeadAudioVideo05AttnScores_PRUEBA_LR/attention_scores_{patient}_{epoch}.pkl', 'wb') as f:
+                            with open(f'Models/DataAugmentation_4/Phonemes/SELF_ATTENTION_3HeadAudioVideo05AttnScores_PRUEBA_RELU/attention_scores_{patient}_{epoch}.pkl', 'wb') as f:
                                 pickle.dump(attn_scores, f)                                    
-                            with open(f'Models/DataAugmentation_4/Vowels/SELF_ATTENTION_2HeadAudioVideo05AttnMaps_PRUEBA_LR/attention_maps_{patient}_{epoch}.pkl', 'wb') as f:
+                            with open(f'Models/DataAugmentation_4/Phonemes/SELF_ATTENTION_3HeadAudioVideo05AttnMaps_PRUEBA_RELU/attention_maps_{patient}_{epoch}.pkl', 'wb') as f:
                                 pickle.dump(attn_maps, f)                                    
                         #    np.save(f'/data/franklin_pupils/Jose/Codigo/audiovisualpk/Parkinson-Multimodal-Cross-Attention/Models/DataAugmentation/Vowels/No_Softmax_2_4MultiCabezaAtencionSimpleSimilaridadDrop0.5AudioVideoVowels/PesosSimilaridad_{patient}_{epoch}.npy', attention_weights)
                         #    np.save(f'/data/franklin_pupils/Jose/Codigo/audiovisualpk/Parkinson-Multimodal-Cross-Attention/Models/DataAugmentation/Vowels/No_Softmax_2_4MultiCabezaAtencionSimpleMapasAtencionDrop0.5AudioVideoVowels/PesosAtención_{patient}_{epoch}.npy', attention_maps)
@@ -822,10 +822,10 @@ def train_model_CE_AUDIO_VIDEO_WEIGHTS_SELF_ATTENTION(audio_model, video_model, 
                     epochs_no_improve += 1
                     if epochs_no_improve >= patience:
                         print(f"Early stopping triggered for patient {patient}.")
-                        torch.save(cross_model.state_dict(), f'Models/DataAugmentation_4/Vowels/SELF_ATTENTION_2HeadAudioVideo05AttnWeights_PRUEBA_LR/attention_weights_{patient}.pth')
+                        torch.save(cross_model.state_dict(), f'Models/DataAugmentation_4/Phonemes/SELF_ATTENTION_3HeadAudioVideo05AttnWeights_PRUEBA_RELU/attention_weights_{patient}.pth')
                         return Y, Y_pred, PK_props, C_props, Samples, exercises, repetitions
     # Guardar los pesos del cross_model al finalizar el entrenamiento
-    torch.save(cross_model.state_dict(), f'Models/DataAugmentation_4/Vowels/SELF_ATTENTION_2HeadAudioVideo05AttnWeights_PRUEBA_LR/attention_weights_{patient}.pth')
+    torch.save(cross_model.state_dict(), f'Models/DataAugmentation_4/Phonemes/SELF_ATTENTION_3HeadAudioVideo05AttnWeights_PRUEBA_RELU/attention_weights_{patient}.pth')
     #torch.save(cross_model.state_dict(), f'/data/franklin_pupils/Jose/Codigo/audiovisualpk/Parkinson-Multimodal-Cross-Attention/Models/DataAugmentation/Vowels/No_Softmax_2_4MultiCabezaAtencionSimpleDrop0.5AudioVideoVowels/{patient}.pth')
     #torch.save(cross_model.state_dict(), f'/data/franklin_pupils/Jose/Codigo/audiovisualpk/Parkinson-Multimodal-Cross-Attention/Models/DataAugmentation/Phonemes/2_4PruebaFeatures0.5AudioVideoPhonemes/{patient}.pth')
     #Guardar los pesos de atención al finalizar el entrenamiento
