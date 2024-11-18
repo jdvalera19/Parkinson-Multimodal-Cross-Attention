@@ -4,12 +4,15 @@ import numpy as np
 import torch
 from torchsummary import summary
 import matplotlib.pyplot as plt
+import pickle
 
 import pandas as pd
 
 from torchvision import transforms
 import torchaudio.transforms as audio_transforms
 from torch.utils.data import DataLoader
+from joblib import dump, load
+import os
 
 #Custom librarian
 from Utils.dataset       import *
@@ -46,10 +49,10 @@ if __name__== "__main__":
     lr          = 0.001
     epoch       = 70
     batch_size  = 5
-    exercise    = 'Phonemes'
+    exercise    = 'Words'
     #path_data   = '/data/arumota_pupils/Jose/AudioVisualData_v7'
     path_data   = '/data/franklin_pupils/Jose/Dataset/AudioVisualData_v7'
-    note        = 'PRUEBA_SANTIAGO_SELF_ATENCION_FINAL_DataAugmentation_3Cabeza0.5AtenciónFinal_atenciónEmbebidos_RELU_PRUEBA_AUDIO2D_VIDEO3D_PesosGuardados:weights' 
+    note        = 'PRUEBA_SANTIAGO_SELF_ATENCION_FINAL_DataAugmentation_2Cabeza0.5AtenciónFinal_atenciónEmbebidos_LR_PRUEBA_AUDIO2D_VIDEO3D_PesosGuardados:weights' 
     #note        = 'DataAugmentation_4MultiCabezaAtenciónSimpleDrop0.5_atenciónFeatures_AUDIO2D_VIDEO3D_PesosGuardados:weights' 
     s_duration  = False
 
@@ -95,8 +98,7 @@ if __name__== "__main__":
                                                                                duration    = duration_video)  
 
     # Inicializar el modelo de atención fuera del bucle de pacientes
-    cross_model = FinalMultiHeadAttention(dim_input=256, dim_query=128, dim_key=128, dim_value=128, num_heads=3).to(device)
-    #cross_model = FinalMultiHeadAttention(dim_input=128, dim_query=64, dim_key=64, dim_value=64, num_heads=1).to(device)
+    cross_model = FinalMultiHeadAttention(dim_input=256, dim_query=128, dim_key=128, dim_value=128, num_heads=2).to(device)
     concat_emb_model = EmbeddingConcatenation().to(device)
     optimizer_cross = torch.optim.Adam(cross_model.parameters(), lr=lr, weight_decay=0.001)
     
@@ -149,7 +151,7 @@ if __name__== "__main__":
         # Generate Video Data Augmentation
         #----------------------------------------------------------------
         video_transformations = transforms.Compose([
-        #ApplyVideoTransforms(),  # Aplicar transformaciones al video
+        ApplyVideoTransforms(),  # Aplicar transformaciones al video
         To_Tensor_video()  # Pasar a tensor
         ])
         
@@ -191,98 +193,9 @@ if __name__== "__main__":
         # Generate audio data to train 
         #----------------------------------------------------------------
         transformations = transforms.Compose([To_Tensor_audio()])
-        train_data      = AudioDataset(names_audios  = audios_Train, #VERIFICAR BIEN LOS ESPECTROGRAMAS Y VER SI SON DICIENTES Y VALIDOS. EVITAR QUE NO HAYA ERRORES -- NO HAY ERRORES
+        train_data      = AudioDataset(names_audios  = audios_Train, #VERIFICAR BIEN LOS ESPECTROGRAMAS Y VER SI SON DICIENTES Y VALIDOS. EVITAR QUE NO HAYA ERRORES
                                         duration     = duration_audio,
                                         transform    = audio_transformations)
-        test_data       = AudioDataset(names_audios  = audios_Test,
-                                        duration     = duration_audio,
-                                        transform    = transformations)
-
-        print('Audio Training samples: {}'.format(train_data.__len__()))
-        print('Audio Test samples: {}'.format(test_data.__len__()))
-
-        audio_train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=0)
-        audio_test_loader  = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=0)   
         
-        
-        #----------------------------------------------------------------
-        # Load both networks
-        #----------------------------------------------------------------
-        #video_model = CNNModel2D()
-        video_model = CNNModel3D() #Video
-        video_model.to(device)
-        #print(video_model.conv_layer2)
-
-        audio_model = CNNModel2D() #Audio
-        audio_model.to(device)     
-          
-                
-        video_dataloaders = {"train":video_train_loader, "test":video_test_loader}
-        audio_dataloaders = {"train":audio_train_loader, "test":audio_test_loader}
-
-        """
-        _, _, _, _, _, _, _, _, features_audio = train_model_CE_AUDIO_get_layer(model       = audio_model,
-                                                       num_epochs  = epoch,
-                                                       dataloaders = audio_dataloaders,
-                                                       modality    = 'audio',
-                                                       lr          = lr) 
-
-    
-        _, _, _, _, _, _, _, _,features_video = train_model_CE_VIDEO_get_layer1(model       = video_model,
-                                                       num_epochs  = epoch,
-                                                       dataloaders = video_dataloaders,
-                                                       modality    = 'video',
-                                                       lr          = lr)  
-        """
-        Y_true, Y_pred, PK_props, C_props, sample_ids, exercises, repetitions = train_model_CE_AUDIO_VIDEO_WEIGHTS_SELF_ATTENTION(
-                                                        audio_model       = audio_model,
-                                                        video_model       = video_model,
-                                                        cross_model       = cross_model,
-                                                        concat_emb_model  = concat_emb_model,
-                                                        optimizer_cross   = optimizer_cross,  
-                                                        num_epochs  = epoch,
-                                                        audio_dataloaders = audio_dataloaders,
-                                                        video_dataloaders = video_dataloaders,
-                                                        audio_modality   =  'audio',
-                                                        video_modality    = 'video',
-                                                        lr          = lr,
-                                                        device = device,
-                                                        patient = patient) 
-
-        # Plotting the validation loss against learning rate
-        #plt.figure(figsize=(10, 5))
-        #plt.plot(lr_history, val_loss, marker='o')
-        #plt.xscale('log')
-        #plt.xlabel('Learning Rate')
-        #plt.ylabel('Validation Loss')
-        #plt.title('Validation Loss as a Function of Learning Rate')
-        #plt.grid(True)
-        #plt.show()
-        #plt.savefig(f'Images/validation_loss_plot_{patient}.png')  # Save to file  
-        #plt.close()  # Close the plot frame to free resources
-        
-        Y_true_g        += Y_true
-        Y_pred_g        += Y_pred
-        PK_props_g      += PK_props
-        C_props_g       += C_props
-        samples_ids_g   += sample_ids
-        exercises_g     += exercises
-        repetitions_g   += repetitions
-
-
-    dataframe_of_results_name = 'Results_v4/DataAugmentation_4/Phonemes/Note:{}-Lr:{}-Epoch:{}-Exercise:{}-duration_size:{}-batch_size:{}.csv'.format(note, lr, epoch, exercise, s_duration, batch_size)
-
-    data_frame_of_results = pd.DataFrame({'Y_true'       : Y_true_g,
-                                          'Y_pred'       : Y_pred_g,
-                                          'PK_props'     : PK_props_g,
-                                          'C_props'      : C_props_g,
-                                          'Sample_ids'   : samples_ids_g,
-                                          'Exercise_g'   : exercises_g,
-                                          'Repetition'   : repetitions_g})
-
-    data_frame_of_results.to_csv(dataframe_of_results_name)
-
-    view_results(dataframe_of_results_name)
-        
-
-        
+        os.makedirs('spects', exist_ok=True)
+        dump(train_data.X, 'spects/train_data_words_X.joblib')

@@ -477,7 +477,7 @@ class SimpleCrossAttention(nn.Module):
         self.value_layer = nn.Linear(dim_input, dim_value)
         #self.classifier = nn.Linear(dim_input, 2)
         self.batch=nn.LayerNorm(dim_value)
-        self.dropout = nn.Dropout(0.5)
+        self.dropout = nn.Dropout(0)
         self.apply(self._init_weights)
 
     def _init_weights(self, module):
@@ -525,8 +525,10 @@ class FinalMultiHeadAttention(nn.Module):
         self.num_heads = num_heads
         self.dense = nn.Sequential(
             nn.Linear(dim_key * num_heads, 64),  # Reducción intermedia
-            #nn.ReLU(),
+            #nn.Linear(dim_key * num_heads, 32),  # Reducción intermedia
+            nn.LeakyReLU(),
             nn.Linear(64, 2)  # Salida final
+            #nn.Linear(32, 2)  # Salida final
         )
 
     #def forward(self, input1, input2):
@@ -740,14 +742,17 @@ class BasicConv2D(nn.Module):
 
 class EmbeddingConcatenation(nn.Module):
     #def __init__(self, input_dim, output_dim=2):
-    def __init__(self):
+    def __init__(self, input_dim=256):
         super(EmbeddingConcatenation, self).__init__()
-        #self.concat_layer = nn.Linear(input_dim, output_dim)
+        self.dense = nn.Linear(input_dim, input_dim) # 1) GENERAR UNA DENSA DEL MISMO TAMAÑO O UN TAMAÑO MÁS CHIQUITO Y UNA ACTIVACIÓN (PUEDE SER RELU)
+        self.relu = nn.LeakyReLU()
         #self.batchnorm = nn.LayerNorm(256)  # Cambia a input_dim para claridad
         #self.dropout = nn.Dropout(0.5)
 
     def forward(self, embed1, embed2):
         concatenated_embed = torch.cat((embed1, embed2), dim=1)
+        concatenated_embed = self.dense(concatenated_embed)
+        concatenated_embed = self.relu(concatenated_embed)
         #normalized_embed = self.batchnorm(concatenated_embed)  # Normaliza la concatenación
         #output = self.concat_layer(normalized_embed)  # Usa el embed normalizado como entrada
         #output = self.dropout(output)
